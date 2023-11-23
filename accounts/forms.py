@@ -1,14 +1,12 @@
 from django import forms
-from django.conf import settings
 from django.contrib.auth.forms import UserCreationForm
 from django.db import transaction
 
-from .models import User, UserBankAccount, UserAddress
-from .constants import GENDER_CHOICE
+from .models import User, UserBankAccount, UserAddress, Card
+from .constants import GENDER_CHOICE, CARD_TYPE, CURRENCY
 
 
 class UserAddressForm(forms.ModelForm):
-
     class Meta:
         model = UserAddress
         fields = [
@@ -73,10 +71,6 @@ class UserRegistrationForm(UserCreationForm):
                 user=user,
                 gender=gender,
                 birth_date=birth_date,
-                # account_no=(
-                #     user.id +
-                #     settings.ACCOUNT_NUMBER_START_FROM
-                # )
             )
         return user
 
@@ -86,3 +80,19 @@ class ChangePasswordForm(forms.Form):
     new_password1 = forms.CharField(widget=forms.PasswordInput)
     new_password2 = forms.CharField(widget=forms.PasswordInput)
 
+
+class CardCreationForm(forms.ModelForm):
+    card_type = forms.ChoiceField(choices=CARD_TYPE)
+    currency = forms.ChoiceField(choices=CURRENCY)
+
+    class Meta:
+        model = Card
+        fields = [
+            'card_type',
+            'currency',
+        ]
+
+
+class EmailVerificationForm(forms.Form):
+    email = forms.EmailField(label='Email')
+    verification_code = forms.CharField(label='Verification Code')

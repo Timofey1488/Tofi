@@ -1,4 +1,5 @@
-from decimal import Decimal
+import random
+import uuid
 
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import (
@@ -14,14 +15,19 @@ from .managers import UserManager
 class User(AbstractUser):
     username = None
     email = models.EmailField(unique=True, null=False, blank=False)
-
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
+    is_active = models.BooleanField(
+        default=False,
+    )
     REQUIRED_FIELDS = []
 
     def __str__(self):
         return self.email
+
+    def has_cards(self):
+        return self.user_cards.exists()
 
     # @property
     # def balance(self):
@@ -48,6 +54,7 @@ class UserBankAccount(models.Model):
 
 
 class Card(models.Model):
+    account_no = models.CharField(max_length=16, unique=True)
     user = models.ForeignKey(
         User,
         related_name='user_cards',
@@ -58,12 +65,21 @@ class Card(models.Model):
         max_digits=12,
         decimal_places=2
     )
+    cvv_code = models.CharField(max_length=3)
     card_type = models.CharField(max_length=1, choices=CARD_TYPE)
     currency = models.CharField(max_length=1, choices=CURRENCY)
-    account_no = models.PositiveIntegerField(unique=True)
+
+    def save(self, *args, **kwargs):
+        # Generate values for some fields
+        if not self.account_no:
+            self.account_no = ''.join(str(random.randint(0, 9)) for _ in range(16))
+        if not self.cvv_code:
+            self.cvv_code = random.randint(100, 999)
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return str(self.account_no + self.user.username)
+        return f"{self.account_no} {self.user.first_name} {self.user.last_name}"
 
 
 class UserAddress(models.Model):
@@ -90,7 +106,7 @@ class UserAim(models.Model):
     )
     name = models.CharField(max_length=512)
     amount_of_deposit_withdraw = models.PositiveIntegerField()
-    period_of_deposit = models.CharField(max_length=1,choices=PERIOD_DEPOSIT)
+    period_of_deposit = models.CharField(max_length=1, choices=PERIOD_DEPOSIT)
     date_start = models.CharField(max_length=256)
     date_end = models.PositiveIntegerField()
 

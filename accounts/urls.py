@@ -1,6 +1,7 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
-from .views import UserRegistrationView, LogoutView, UserLoginView, UserProfileView, change_password
+from .views import (UserRegistrationView, LogoutView, UserLoginView, UserProfileView, change_password, CardCreateView,
+                    CardListView, verify_email)
 
 app_name = 'accounts'
 
@@ -28,5 +29,16 @@ urlpatterns = [
     path(
         'password_change_done/', auth_views.PasswordChangeDoneView.as_view(),
         name='password_change_done'
-    )
+    ),
+    path(
+        'create_card/', CardCreateView.as_view(),
+        name='create_card'
+    ),
+    path(
+        'card_list/', CardListView.as_view(),
+        name='card_list'
+    ),
+    path(
+        'verify-email/', verify_email, name='verify_email'
+    ),
 ]

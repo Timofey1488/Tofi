@@ -4,8 +4,8 @@ FEMALE = 'F'
 DEBIT = 'D'
 CREDIT = 'C'
 
-USD = 1
-BYN = 2
+USD = 'U'
+BYN = 'B'
 
 YEAR = "Y"
 MONTH = "M"
@@ -18,8 +18,8 @@ GENDER_CHOICE = (
 )
 
 CARD_TYPE = (
-    (DEBIT, "Male"),
-    (CREDIT, "Female"),
+    (DEBIT, "Debit"),
+    (CREDIT, "Credit"),
 )
 
 CURRENCY = (
