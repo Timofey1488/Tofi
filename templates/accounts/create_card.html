@@ -1,12 +1,39 @@
 {% extends 'core/base.html' %}
 
+<style>
+  .center {
+      display: grid;
+      place-items: center;
+  }
+</style>
+
 {% block content %}
      <h1 class="font-mono font-bold text-3xl text-center pb-5 pt-10">Create a New Card</h1>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button class="bg-blue-500 text-center hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
-        Create Card
+ <form method="post" class="max-w-md mx-auto bg-white p-8 rounded shadow-md">
+  {% csrf_token %}
+  <div class="mb-6">
+    <label for="card_type" class="block text-gray-700 text-sm font-bold mb-2">Card Type</label>
+    <select name="card_type" id="card_type" class="w-full p-2 border border-gray-300 rounded">
+      {% for value, label in form.card_type.field.choices %}
+        <option value="{{ value }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-6">
+    <label for="currency" class="block text-gray-700 text-sm font-bold mb-2">Currency</label>
+    <select name="currency" id="currency" class="w-full p-2 border border-gray-300 rounded">
+      {% for value, label in form.currency.field.choices %}
+        <option value="{{ value }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="flex items-center justify-center">
+    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+      Create Card
     </button>
-  </form>
+  </div>
+</form>
+
 {% endblock %}

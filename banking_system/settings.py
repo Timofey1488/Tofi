@@ -157,6 +157,17 @@ CELERY_BEAT_SCHEDULE = {
     }
 }
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:18000/1'
+    }
+}
+
+BANK_USER_CONFIRMATION_KEY = "user_confirmation_{token}"
+BANK_USER_CONFIRMATION_TIMEOUT = 300
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST = 'smtp.yandex.ru'
 EMAIL_PORT = 465
 EMAIL_USE_TLS = False

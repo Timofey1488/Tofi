@@ -1,18 +1,18 @@
-from importlib._common import _
+import uuid
 
 import requests
 from django.contrib import messages
-from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash, authenticate
+from django.contrib.auth import login, logout, update_session_auth_hash, authenticate
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView
-from django.core.exceptions import ValidationError
+from django.core.cache import cache
 from django.core.mail import send_mail
 from django.shortcuts import HttpResponseRedirect, get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views import View
-from django.views.generic import TemplateView, RedirectView, FormView
+from django.views.generic import TemplateView, RedirectView
 
+from banking_system import settings
 from .forms import UserRegistrationForm, UserAddressForm, ChangePasswordForm, CardCreationForm, EmailVerificationForm
 from .models import UserAddress, UserBankAccount, User, Card
 import logging
@@ -20,7 +20,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class UserRegistrationView(FormView):
+class UserRegistrationView(TemplateView):
     model = User
     form_class = UserRegistrationForm
     template_name = 'accounts/user_registration.html'
@@ -32,21 +32,6 @@ class UserRegistrationView(FormView):
             )
         return super().dispatch(request, *args, **kwargs)
 
-    def form_valid(self, form):
-        registration_form = UserRegistrationForm(self.request.POST)
-        address_form = UserAddressForm(self.request.POST)
-
-        if registration_form.is_valid() and address_form.is_valid():
-            user, created = User.objects.get_or_create(email=form.cleaned_data["email"])
-            if created or user.is_active is False:
-                send_mail(
-                   subject=_("Please confirm your registration!"),
-                   message=_("follow this link %s"),
-                   from_email="timosidorenko@yandex.ru",
-                   recipient_list=[user.email,]
-                )
-        return super().form_valid(form)
-
     def post(self, request, *args, **kwargs):
         registration_form = UserRegistrationForm(self.request.POST)
         address_form = UserAddressForm(self.request.POST)
@@ -57,11 +42,10 @@ class UserRegistrationView(FormView):
             address.user = user
             address.save()
 
-            login(self.request, user)
             messages.success(
                 self.request,
                 (
-                    f'Thank You For Creating A Bank Account. '
+                    f'Account successfully created. '
                 )
             )
             return HttpResponseRedirect(
@@ -84,7 +68,25 @@ class UserRegistrationView(FormView):
         return super().get_context_data(**kwargs)
 
 
-# def register_confirm(request, token):
+def register_confirm(request, token):
+    redis_key = settings.BANK_USER_CONFIRMATION_KEY.format(token=token)
+    user_info = cache.get(redis_key) or {}
+
+    if user_id := user_info.get("user_id"):
+        user = get_object_or_404(User, id=user_id)
+        user.is_active = True
+        user.save(update_fields=["is_active"])
+        login(request, user)
+        messages.success(
+            request,
+            (
+                f'Thank You For Creating A Bank Account. '
+            )
+        )
+        return redirect(to=reverse_lazy("accounts:user_profile"))
+    else:
+        return redirect(to=reverse_lazy("accounts:user_registration"))
+
 
 class UserLoginView(LoginView):
     template_name = 'accounts/user_login.html'
@@ -121,7 +123,6 @@ class UserProfileView(TemplateView):
             context['address'] = None
 
         return context
-
 
 
 @login_required
