@@ -43,6 +43,7 @@ INSTALLED_APPS = [
 
 
     'django_celery_beat',
+    'widget_tweaks',
 
     'accounts',
     'core',
@@ -168,7 +169,6 @@ CACHES = {
         'LOCATION': 'redis://127.0.0.1:18000/1'
     }
 }
-
 BANK_USER_CONFIRMATION_KEY = "user_confirmation_{token}"
 BANK_USER_CONFIRMATION_TIMEOUT = 300
 

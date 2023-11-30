@@ -82,12 +82,14 @@ class ChangePasswordForm(forms.Form):
 
 
 class CardCreationForm(forms.ModelForm):
+    card_name = forms.CharField()
     card_type = forms.ChoiceField(choices=CARD_TYPE)
     currency = forms.ChoiceField(choices=CURRENCY)
 
     class Meta:
         model = Card
         fields = [
+            'card_name',
             'card_type',
             'currency',
         ]
@@ -100,3 +102,20 @@ class EmailVerificationForm(forms.Form):
 
 class DepositCardForm(forms.Form):
     deposit_amount = forms.DecimalField()
+
+
+class PaymentForm(forms.Form):
+    amount = forms.DecimalField(label='Amount', min_value=0, required=True)
+    card = forms.ModelChoiceField(queryset=None, empty_label="Select Card", label="Select Card")
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        user_cards = Card.objects.filter(user=user)
+        self.fields['card'].queryset = user_cards
+
+    def clean_amount(self):
+        amount = self.cleaned_data['amount']
+        if amount <= 0:
+            raise forms.ValidationError("Amount must be greater than zero.")
+        return amount

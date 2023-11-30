@@ -1,7 +1,7 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from .views import (UserRegistrationView, LogoutView, UserLoginView, UserProfileView, change_password, CardCreateView,
-                    CardListView, register_confirm, deposit_card, StaffProfileView)
+                    CardListView, register_confirm, deposit_card, StaffProfileView, make_payment)
 
 app_name = 'accounts'
 
@@ -29,6 +29,9 @@ urlpatterns = [
     path(
         'password_change/', change_password,
         name='password_change'
+    ),
+    path(
+        'make_payment/', make_payment, name='make_payment'
     ),
     path(
         'password_change_done/', auth_views.PasswordChangeDoneView.as_view(),

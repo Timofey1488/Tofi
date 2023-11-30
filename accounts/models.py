@@ -2,6 +2,7 @@ import random
 import uuid
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.core.validators import (
     MinValueValidator,
     MaxValueValidator,
@@ -10,6 +11,7 @@ from django.db import models
 
 from .constants import GENDER_CHOICE, CURRENCY, CARD_TYPE, PERIOD_DEPOSIT
 from .managers import UserManager
+from .utils import convert_currency
 
 
 class User(AbstractUser):
@@ -54,6 +56,7 @@ class UserBankAccount(models.Model):
 
 
 class Card(models.Model):
+    card_name = models.CharField(max_length=20, default='Test')
     account_no = models.CharField(max_length=16, unique=True)
     user = models.ForeignKey(
         User,
@@ -84,8 +87,60 @@ class Card(models.Model):
 
         super().save(*args, **kwargs)
 
+    def make_payment(self, amount, card_type):
+        if self.currency != 'B':
+            converted_amount = convert_currency(amount, self.currency, 'B', 3.116)
+        else:
+            converted_amount = amount
+
+        print(f"Original amount: {amount}, Converted amount: {converted_amount}, Card balance: {self.balance}")
+
+        if card_type == 'C':
+            # Проверяем лимит для кредитных карт
+            if not self.is_deposit_allowed:
+                raise ValidationError("Deposit not allowed for credit card")
+        elif card_type == 'D':
+            # Для дебетовых карт проверяем только баланс
+            if self.balance < converted_amount:
+                raise ValidationError("Insufficient funds for debit card")
+        else:
+            raise ValidationError("Invalid card type")
+
+        # Операция успешного платежа
+        payment = Payment.objects.create(
+            card=self,
+            amount=converted_amount,
+            currency='B',
+            card_type=card_type,
+            status="Success"
+        )
+        print("Payment successful")
+        return True, "Payment successful"
+
     def __str__(self):
-        return f"{self.account_no} {self.user.first_name} {self.user.last_name}"
+        return f"{self.card_name} {self.balance} {self.currency}"
+
+
+class Payment(models.Model):
+    card = models.ForeignKey(
+        Card,
+        related_name='card_payments',
+        on_delete=models.CASCADE,
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2
+    )
+    currency = models.CharField(max_length=1, choices=CURRENCY)
+    card_type = models.CharField(max_length=1, choices=CARD_TYPE)
+    status = models.CharField(max_length=10)   # "Success", "Failure"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        if self.status == "Success":
+            self.card.balance -= self.amount
+            self.card.save()
 
 
 class UserAddress(models.Model):

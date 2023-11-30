@@ -1,23 +1,24 @@
 import uuid
 
-import requests
 from django.contrib import messages
 from django.contrib.auth import login, logout, update_session_auth_hash, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.core.cache import cache
-from django.core.mail import send_mail
+from django.http import HttpResponse
 from django.shortcuts import HttpResponseRedirect, get_object_or_404, redirect, render
-from django.template.defaulttags import url
 from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import TemplateView, RedirectView
 
 from banking_system import settings
+from .constants import CURRENCY
 from .forms import UserRegistrationForm, UserAddressForm, ChangePasswordForm, CardCreationForm, EmailVerificationForm, \
-    DepositCardForm
+    DepositCardForm, PaymentForm
 from .models import UserAddress, UserBankAccount, User, Card
 import logging
+
+from .utils import convert_currency
 
 logger = logging.getLogger(__name__)
 
@@ -129,8 +130,38 @@ class UserProfileView(TemplateView):
         return context
 
 
+def make_payment(request, card_id=None):
+    card = get_object_or_404(Card, id=card_id) if card_id else 1
+
+    if request.method == 'POST':
+        form = PaymentForm(request.user, request.POST)
+        if form.is_valid():
+            amount = form.cleaned_data['amount']
+            selected_card = form.cleaned_data['card']
+
+            # Извлекаем card_type и balance из выбранной карты
+            card_type = selected_card.card_type
+
+            # Выполняем конверсию валюты, если это необходимо
+            converted_amount = convert_currency(amount, selected_card.currency, 'BYN', 3.116)
+
+            # Выполняем платеж
+            success, message = selected_card.make_payment(converted_amount, card_type)
+
+            if success:
+                return HttpResponse(f"Payment successful. {message}")
+            else:
+                return HttpResponse(f"Payment failed. {message}")
+
+    else:
+        form = PaymentForm(request.user)
+
+    return render(request, 'accounts/payment_form.html', {'form': form, 'card': card})
+
+
 class StaffProfileView(TemplateView):
     template_name = 'accounts/staff_profile.html'
+
 
 @login_required
 def change_password(request):

@@ -1,9 +1,19 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-    <form method="post" action="{% url 'accounts:deposit_form' card.id %}">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Deposit</button>
-    </form>
+    <div class="max-w-md mx-auto mt-8 bg-white p-8 shadow-md">
+        <h2 class="flex items-center justify-center text-2xl font-semibold mb-6">Make Deposit</h2>
+        <form method="post" action="{% url 'accounts:deposit_form' card.id %}" class="space-y-4">
+            {% csrf_token %}
+
+            <div class="flex items-center justify-center">
+                <label for="{{ form.deposit_amount.id_for_label }}" class="mr-2">Deposit Amount:</label>
+                {{ form.deposit_amount }}
+            </div>
+
+            <div class="flex items-center justify-center">
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-md">Deposit</button>
+            </div>
+        </form>
+    </div>
 {% endblock %}

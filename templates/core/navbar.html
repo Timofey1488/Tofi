@@ -19,8 +19,8 @@
                         My account
                     </a>
                 {% endif %}
-                <a href="#" class="block mt-4 lg:inline-block lg:mt-0 text-white hover:text-white mr-4">
-                    Transfer
+                <a href="{% url 'accounts:make_payment'%}" class="block mt-4 lg:inline-block lg:mt-0 text-white hover:text-white mr-4">
+                    Payment
                 </a>
                 <a href="{% url 'transactions:transaction_report' %}" class="block mt-4 lg:inline-block lg:mt-0 text-white hover:text-white mr-4">
                     History
