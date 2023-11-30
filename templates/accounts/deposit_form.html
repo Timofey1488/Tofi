@@ -1,0 +1,9 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+    <form method="post" action="{% url 'accounts:deposit_form' card.id %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Deposit</button>
+    </form>
+{% endblock %}

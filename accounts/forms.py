@@ -96,3 +96,7 @@ class CardCreationForm(forms.ModelForm):
 class EmailVerificationForm(forms.Form):
     email = forms.EmailField(label='Email')
     verification_code = forms.CharField(label='Verification Code')
+
+
+class DepositCardForm(forms.Form):
+    deposit_amount = forms.DecimalField()

@@ -1,7 +1,7 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from .views import (UserRegistrationView, LogoutView, UserLoginView, UserProfileView, change_password, CardCreateView,
-                    CardListView, verify_email, register_confirm)
+                    CardListView, register_confirm, deposit_card, StaffProfileView)
 
 app_name = 'accounts'
 
@@ -23,6 +23,10 @@ urlpatterns = [
         name="user_profile"
     ),
     path(
+        "staff_profile/", StaffProfileView.as_view(),
+        name="staff_profile"
+    ),
+    path(
         'password_change/', change_password,
         name='password_change'
     ),
@@ -37,6 +41,10 @@ urlpatterns = [
     path(
         'card_list/', CardListView.as_view(),
         name='card_list'
+    ),
+    path(
+        'deposit_card/<int:card_id>', deposit_card,
+        name='deposit_form'
     ),
     path(
         'register_confirm/<token>', register_confirm, name='register_confirm'

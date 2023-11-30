@@ -19,7 +19,7 @@ class User(AbstractUser):
 
     USERNAME_FIELD = 'email'
     is_active = models.BooleanField(
-        default=False,
+        default=True,
     )
     REQUIRED_FIELDS = []
 
@@ -65,6 +65,12 @@ class Card(models.Model):
         max_digits=12,
         decimal_places=2
     )
+    pending_deposit_amount = models.DecimalField(
+        default=0,
+        max_digits=12,
+        decimal_places=2
+    )
+    is_deposit_allowed = models.BooleanField(default=True)
     cvv_code = models.CharField(max_length=3)
     card_type = models.CharField(max_length=1, choices=CARD_TYPE)
     currency = models.CharField(max_length=1, choices=CURRENCY)

@@ -8,12 +8,14 @@ from django.contrib.auth.views import LoginView
 from django.core.cache import cache
 from django.core.mail import send_mail
 from django.shortcuts import HttpResponseRedirect, get_object_or_404, redirect, render
+from django.template.defaulttags import url
 from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import TemplateView, RedirectView
 
 from banking_system import settings
-from .forms import UserRegistrationForm, UserAddressForm, ChangePasswordForm, CardCreationForm, EmailVerificationForm
+from .forms import UserRegistrationForm, UserAddressForm, ChangePasswordForm, CardCreationForm, EmailVerificationForm, \
+    DepositCardForm
 from .models import UserAddress, UserBankAccount, User, Card
 import logging
 
@@ -107,9 +109,11 @@ class UserProfileView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        user_profile_exists = UserAddress.objects.filter(user=self.request.user).exists()
-        context['user_profile_exists'] = True
         user = self.request.user
+        if user.is_staff:
+            return redirect('accounts:staff_profile')
+        context['user_profile_exists'] = True
+
         try:
             user_bank_account = UserBankAccount.objects.get(user=user)
             context['bank_account'] = user_bank_account
@@ -124,6 +128,9 @@ class UserProfileView(TemplateView):
 
         return context
 
+
+class StaffProfileView(TemplateView):
+    template_name = 'accounts/staff_profile.html'
 
 @login_required
 def change_password(request):
@@ -186,30 +193,27 @@ class CardListView(View):
         return render(request, self.template_name, {'cards': cards})
 
 
-@login_required
-def verify_email(request):
+def deposit_card(request, card_id):
+    card = Card.objects.get(id=card_id)
+
+    if not card.is_deposit_allowed:
+        # Redirect or display an error message indicating that deposits are not allowed
+        return redirect('accounts:create_card')
+
     if request.method == 'POST':
-        form = EmailVerificationForm(request.POST)
+        form = DepositCardForm(request.POST)
         if form.is_valid():
-            email = form.cleaned_data['email']
-            verification_code = form.cleaned_data['verification_code']
+            deposit_amount = form.cleaned_data['deposit_amount']
 
-            api_key = 'bc510d19f2mshae21fe16b9426f6p1c3d47jsn41e74e4df89b'
-            response = requests.get(
-                f'https://email-validator8.p.rapidapi.com/validate?code={verification_code}&email={email}',
-                headers={'X-RapidAPI-Key': api_key}
-            )
+            # Set the pending deposit amount instead of updating the balance directly
+            card.pending_deposit_amount += deposit_amount
+            card.save()
 
-            if response.status_code == 200 and response.json().get('result') == 'valid':
-                request.user.email_verified = True
-                request.user.save()
-
-                messages.success(request, 'Email successfully approved')
-                return redirect('home')
-
-            else:
-                messages.error(request, 'Wrong code verification')
+            # Redirect to a success page or wherever needed
+            messages.success(request, "Deposit request submitted. Awaiting admin approval.")
+            return redirect('accounts:create_card')
     else:
-        form = EmailVerificationForm()
+        form = DepositCardForm()
 
-    return render(request, 'accounts/verify_email.html', {'form': form})
+    return render(request, 'accounts/deposit_form.html', {'form': form, 'card': card})
+
