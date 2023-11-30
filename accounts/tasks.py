@@ -1,7 +1,6 @@
 from celery import shared_task
 from django.contrib.admin.models import LogEntry, CHANGE
 from django.contrib.contenttypes.models import ContentType
-from django.http import request
 from django.utils import timezone
 
 from banking_system import settings
@@ -23,7 +22,7 @@ def check_credit_card_payments():
 
 
 @shared_task
-def process_pending_deposits():
+def process_pending_deposits(user_id):
     # Get cards with pending deposits
     cards = Card.objects.filter(is_deposit_allowed=True, pending_deposit_amount__gt=0)
 
@@ -36,11 +35,10 @@ def process_pending_deposits():
         # Log the deposit in the admin panel
         content_type = ContentType.objects.get_for_model(card)
         LogEntry.objects.create(
-            user_id=user.id,  # Use the appropriate user ID
+            user_id=user_id,  # Use the appropriate user ID
             content_type_id=content_type.id,
             object_id=card.id,
             object_repr=str(card),
             action_flag=CHANGE,
             change_message='Manual deposit processed.'
         )
-            

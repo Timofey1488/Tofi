@@ -139,8 +139,8 @@ MINIMUM_WITHDRAWAL_AMOUNT = 10
 LOGIN_REDIRECT_URL = 'home'
 
 # Celery Settings
-CELERY_BROKER_URL = 'redis://localhost:6379'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379'
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -155,7 +155,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'calculate_interest',
         # http://docs.celeryproject.org/en/latest/userguide/periodic-tasks.html
         'schedule': crontab(day_of_month='1', hour='0'),
-    }
+    },
+    'process-pending-deposits': {
+        'task': 'your_project.tasks.process_pending_deposits',
+        'schedule': 60,  # Set the schedule interval in seconds (e.g., every 10 minutes)
+    },
 }
 
 CACHES = {
