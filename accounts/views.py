@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth import login, logout, update_session_auth_hash, authenticate
@@ -142,9 +143,10 @@ def make_payment(request, card_id=None):
 
             # Извлекаем card_type и balance из выбранной карты
             card_type = selected_card.card_type
-
-            # Выполняем конверсию валюты, если это необходимо
-            converted_amount = convert_currency(amount, selected_card.currency, 'BYN', 3.116)
+            if selected_card.currency == 'U':
+                converted_amount = convert_currency(amount, 'USD', 'BYN', 3.116)
+            else:
+                converted_amount = amount
 
             # Выполняем платеж
             success, message = selected_card.make_payment(converted_amount, card_type)
@@ -243,6 +245,13 @@ def deposit_card(request, card_id):
             card.pending_deposit_amount += deposit_amount
             card.deposit_pending = True
             card.save()
+            payment = Payment.objects.create(
+                card=card,
+                amount=card.pending_deposit_amount,
+                currency='B',
+                card_type=card.card_type,
+                deposit_pending=True
+            )
 
             # Redirect to a success page or wherever needed
             messages.success(request, "Deposit request submitted. Awaiting admin approval.")
@@ -256,15 +265,27 @@ def deposit_card(request, card_id):
 def statement(request, card_id):
     form = StatementFilterForm(request.GET or None)
     card = Card.objects.get(id=card_id)
+
     if form.is_valid():
         start_date = form.cleaned_data['start_date']
-        end_date = form.cleaned_data['end_date']
+        end_date = form.cleaned_data['end_date'] + timedelta(days=1)
 
         payments = Payment.objects.filter(card=card, timestamp__range=[start_date, end_date])
-        total_spent = payments.aggregate(Sum('amount'))['amount__sum'] or 0
+
+        # Separate payments and pending deposits
+        regular_payments = payments.filter(deposit_pending=False)
+        pending_deposits = payments.filter(deposit_pending=True)
+
+        total_spent = regular_payments.aggregate(Sum('amount'))['amount__sum'] or 0
     else:
-        payments = []
+        regular_payments = []
+        pending_deposits = []
         total_spent = 0
 
-    return render(request, 'accounts/statement.html', {'form': form, 'payments': payments, 'total_spent': total_spent, 'card': card})
-
+    return render(request, 'accounts/statement.html', {
+        'form': form,
+        'regular_payments': regular_payments,
+        'pending_deposits': pending_deposits,
+        'total_spent': total_spent,
+        'card': card,
+    })

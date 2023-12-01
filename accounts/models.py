@@ -85,18 +85,14 @@ class Card(models.Model):
         super().save(*args, **kwargs)
 
     def make_payment(self, amount, card_type):
-        if self.currency != 'B':
-            converted_amount = convert_currency(amount, self.currency, 'B', 3.116)
-        else:
-            converted_amount = amount
 
         if card_type == 'C':
             if not self.is_deposit_allowed:
                 return False, "Deposit not allowed for credit card"
-            elif self.balance < converted_amount:
+            elif self.balance < amount:
                 return False, "Insufficient funds for credit card payment"
         elif card_type == 'D':
-            if self.balance < converted_amount:
+            if self.balance < amount:
                 return False, "Insufficient funds for debit card"
         else:
             return False, "Invalid card type"
@@ -106,17 +102,16 @@ class Card(models.Model):
             # Create a Payment record
             payment = Payment.objects.create(
                 card=self,
-                amount=converted_amount,
+                amount=amount,
                 currency='B',
                 card_type=card_type,
             )
 
             # Update the card balance
-            self.balance -= converted_amount
+            self.balance -= amount
             self.save()
 
         return True, "Payment successful"
-
 
     def __str__(self):
         return f"{self.card_name} {self.balance} {self.currency}"
@@ -135,6 +130,7 @@ class Payment(models.Model):
     currency = models.CharField(max_length=1, choices=CURRENCY)
     card_type = models.CharField(max_length=1, choices=CARD_TYPE)
     timestamp = models.DateTimeField(default=timezone.now)
+    deposit_pending = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.card.id} - {self.amount} {self.currency} ({self.timestamp})"

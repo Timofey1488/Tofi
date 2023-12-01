@@ -124,9 +124,17 @@ class PaymentForm(forms.Form):
         return amount
 
 
+class CustomSelectDateWidget(SelectDateWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Allow selecting years that are more than 30 years in the past
+        current_year = datetime.now().year
+        self.years = range(current_year - 5, current_year + 1)
+
+
 class StatementFilterForm(forms.Form):
-    start_date = forms.DateField(widget=SelectDateWidget(empty_label=("Choose Year", "Choose Month", "Choose Day")))
-    end_date = forms.DateField(widget=SelectDateWidget(empty_label=("Choose Year", "Choose Month", "Choose Day")))
+    start_date = forms.DateField(widget=CustomSelectDateWidget(empty_label=("Choose Year", "Choose Month", "Choose Day")))
+    end_date = forms.DateField(widget=CustomSelectDateWidget(empty_label=("Choose Year", "Choose Month", "Choose Day")))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

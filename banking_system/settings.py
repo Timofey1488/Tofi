@@ -44,6 +44,7 @@ INSTALLED_APPS = [
 
     'django_celery_beat',
     'widget_tweaks',
+    'bootstrap_datepicker_plus',
 
     'accounts',
     'core',
