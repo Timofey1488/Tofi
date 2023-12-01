@@ -11,6 +11,11 @@
                 <label for="amount" class="block text-sm font-medium text-gray-600">Amount</label>
                 <input type="text" name="amount" id="amount" class="mt-1 p-2 border border-gray-300 rounded-md w-full" placeholder="Enter the amount">
             </div>
+            {% if form.amount.errors %}
+                    {% for error in form.amount.errors %}
+                        <p class="text-red-600 text-sm italic mt-2">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
 
             <div>
                 {{ form.card }}

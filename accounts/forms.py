@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.db import transaction
+from django.forms import SelectDateWidget
 
 from .models import User, UserBankAccount, UserAddress, Card
 from .constants import GENDER_CHOICE, CARD_TYPE, CURRENCY
@@ -105,7 +106,7 @@ class DepositCardForm(forms.Form):
 
 
 class PaymentForm(forms.Form):
-    amount = forms.DecimalField(label='Amount', min_value=0, required=True)
+    amount = forms.DecimalField(required=True)
     card = forms.ModelChoiceField(queryset=None, empty_label="Select Card", label="Select Card")
 
     def __init__(self, user, *args, **kwargs):
@@ -119,3 +120,8 @@ class PaymentForm(forms.Form):
         if amount <= 0:
             raise forms.ValidationError("Amount must be greater than zero.")
         return amount
+
+
+class StatementFilterForm(forms.Form):
+    start_date = forms.DateField(widget=SelectDateWidget(empty_label=("Choose Year", "Choose Month", "Choose Day")))
+    end_date = forms.DateField(widget=SelectDateWidget(empty_label=("Choose Year", "Choose Month", "Choose Day")))

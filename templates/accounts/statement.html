@@ -1,0 +1,17 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+  <h2>Statement</h2>
+  <form method="get" action="">
+    {{ form.as_p }}
+    <button type="submit">Filter</button>
+  </form>
+
+  <h3>Total Spent: ${{ total_spent }}</h3>
+
+  <ul>
+    {% for payment in payments %}
+      <li>{{ payment.timestamp }} - {{ payment.amount }} {{ payment.currency }} - {{ payment.description }}</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

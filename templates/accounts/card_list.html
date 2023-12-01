@@ -8,7 +8,8 @@
       {% for card in cards %}
         <div class="bg-white rounded-lg overflow-hidden shadow-md">
           <div class="p-4">
-            <h5 class="text-xl font-semibold mb-2">{{ card.get_card_type_display }}</h5>
+            <h5 class="text-xl font-semibold mb-2">{{ card.card_name }}</h5>
+              <p class="text-gray-600 mb-2">Card Type: {{ card.get_card_type_display }}</p>
             <p class="text-gray-600 mb-2">Balance: {{ card.balance }} {{ card.get_currency_display }}</p>
             <p class="text-gray-600 mb-2">Card Number: {{ card.account_no }}</p>
             <p class="text-gray-600 mb-2">CVV: <span id="cvv-{{ card.id }}" class="cvv-password">***</span>
@@ -16,7 +17,7 @@
             </p>
                 <div class="flex items-center justify-center mt-3">
                     <button class="bg-blue-700 text-center hover:bg-blue-800 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                        <a href="{% url 'accounts:create_card' %}">History</a>
+                        <a href="{% url 'accounts:card_history' card.id %}">History</a>
                     </button>
                       <button class="bg-orange-700 ml-8 text-center hover:bg-orange-800 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                         <a href="{% url 'accounts:deposit_form' card.id %}">Deposit</a>

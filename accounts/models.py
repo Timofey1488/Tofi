@@ -1,13 +1,9 @@
+import datetime
 import random
-import uuid
+from django.utils import timezone
 
 from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ValidationError
-from django.core.validators import (
-    MinValueValidator,
-    MaxValueValidator,
-)
-from django.db import models
+from django.db import models, transaction
 
 from .constants import GENDER_CHOICE, CURRENCY, CARD_TYPE, PERIOD_DEPOSIT
 from .managers import UserManager
@@ -74,6 +70,7 @@ class Card(models.Model):
         decimal_places=2
     )
     is_deposit_allowed = models.BooleanField(default=True)
+    deposit_pending = models.BooleanField(default=False)
     cvv_code = models.CharField(max_length=3)
     card_type = models.CharField(max_length=1, choices=CARD_TYPE)
     currency = models.CharField(max_length=1, choices=CURRENCY)
@@ -93,29 +90,33 @@ class Card(models.Model):
         else:
             converted_amount = amount
 
-        print(f"Original amount: {amount}, Converted amount: {converted_amount}, Card balance: {self.balance}")
-
         if card_type == 'C':
-            # Проверяем лимит для кредитных карт
             if not self.is_deposit_allowed:
-                raise ValidationError("Deposit not allowed for credit card")
+                return False, "Deposit not allowed for credit card"
+            elif self.balance < converted_amount:
+                return False, "Insufficient funds for credit card payment"
         elif card_type == 'D':
-            # Для дебетовых карт проверяем только баланс
             if self.balance < converted_amount:
-                raise ValidationError("Insufficient funds for debit card")
+                return False, "Insufficient funds for debit card"
         else:
-            raise ValidationError("Invalid card type")
+            return False, "Invalid card type"
 
-        # Операция успешного платежа
-        payment = Payment.objects.create(
-            card=self,
-            amount=converted_amount,
-            currency='B',
-            card_type=card_type,
-            status="Success"
-        )
-        print("Payment successful")
+        # Perform the payment transaction
+        with transaction.atomic():
+            # Create a Payment record
+            payment = Payment.objects.create(
+                card=self,
+                amount=converted_amount,
+                currency='B',
+                card_type=card_type,
+            )
+
+            # Update the card balance
+            self.balance -= converted_amount
+            self.save()
+
         return True, "Payment successful"
+
 
     def __str__(self):
         return f"{self.card_name} {self.balance} {self.currency}"
@@ -133,14 +134,10 @@ class Payment(models.Model):
     )
     currency = models.CharField(max_length=1, choices=CURRENCY)
     card_type = models.CharField(max_length=1, choices=CARD_TYPE)
-    status = models.CharField(max_length=10)   # "Success", "Failure"
+    timestamp = models.DateTimeField(default=timezone.now)
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-
-        if self.status == "Success":
-            self.card.balance -= self.amount
-            self.card.save()
+    def __str__(self):
+        return f"{self.card.id} - {self.amount} {self.currency} ({self.timestamp})"
 
 
 class UserAddress(models.Model):

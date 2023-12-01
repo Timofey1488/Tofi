@@ -5,6 +5,7 @@ from django.contrib.auth import login, logout, update_session_auth_hash, authent
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.core.cache import cache
+from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import HttpResponseRedirect, get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -14,8 +15,8 @@ from django.views.generic import TemplateView, RedirectView
 from banking_system import settings
 from .constants import CURRENCY
 from .forms import UserRegistrationForm, UserAddressForm, ChangePasswordForm, CardCreationForm, EmailVerificationForm, \
-    DepositCardForm, PaymentForm
-from .models import UserAddress, UserBankAccount, User, Card
+    DepositCardForm, PaymentForm, StatementFilterForm
+from .models import UserAddress, UserBankAccount, User, Card, Payment
 import logging
 
 from .utils import convert_currency
@@ -149,9 +150,11 @@ def make_payment(request, card_id=None):
             success, message = selected_card.make_payment(converted_amount, card_type)
 
             if success:
-                return HttpResponse(f"Payment successful. {message}")
+                messages.success(request, f"{message}")
+                return redirect('accounts:make_payment')
             else:
-                return HttpResponse(f"Payment failed. {message}")
+                messages.error(request, f"{message}")
+                return redirect('accounts:make_payment')
 
     else:
         form = PaymentForm(request.user)
@@ -227,9 +230,9 @@ class CardListView(View):
 def deposit_card(request, card_id):
     card = Card.objects.get(id=card_id)
 
-    if not card.is_deposit_allowed:
-        # Redirect or display an error message indicating that deposits are not allowed
-        return redirect('accounts:create_card')
+    if card.deposit_pending:
+        messages.success(request, "You alrealy have pending deposit. Awaiting admin approval.")
+        return redirect('accounts:card_list')
 
     if request.method == 'POST':
         form = DepositCardForm(request.POST)
@@ -238,13 +241,30 @@ def deposit_card(request, card_id):
 
             # Set the pending deposit amount instead of updating the balance directly
             card.pending_deposit_amount += deposit_amount
+            card.deposit_pending = True
             card.save()
 
             # Redirect to a success page or wherever needed
             messages.success(request, "Deposit request submitted. Awaiting admin approval.")
-            return redirect('accounts:create_card')
+            return redirect('accounts:card_list')
     else:
         form = DepositCardForm()
 
     return render(request, 'accounts/deposit_form.html', {'form': form, 'card': card})
+
+
+def statement(request, card_id):
+    form = StatementFilterForm(request.GET or None)
+    card = Card.objects.get(id=card_id)
+    if form.is_valid():
+        start_date = form.cleaned_data['start_date']
+        end_date = form.cleaned_data['end_date']
+
+        payments = Payment.objects.filter(card__user=request.user, timestamp__range=[start_date, end_date])
+        total_spent = payments.aggregate(Sum('amount'))['amount__sum'] or 0
+    else:
+        payments = []
+        total_spent = 0
+
+    return render(request, 'accounts/statement.html', {'form': form, 'payments': payments, 'total_spent': total_spent, 'card': card})
 
