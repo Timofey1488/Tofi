@@ -121,7 +121,7 @@ def make_payment(request, card_id=None):
             amount = form.cleaned_data['amount']
             selected_card = form.cleaned_data['card']
 
-            # Извлекаем card_type и balance из выбранной карты
+            # Извлекаем card_type из выбранной карты
             card_type = selected_card.card_type
             if selected_card.currency == 'U':
                 converted_amount = convert_currency(amount, 'USD', 'BYN', 3.116)

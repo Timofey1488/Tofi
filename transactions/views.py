@@ -1,134 +1,148 @@
-from dateutil.relativedelta import relativedelta
-
+from decimal import Decimal
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.urls import reverse_lazy
-from django.utils import timezone
-from django.views.generic import CreateView, ListView
-
-from transactions.constants import DEPOSIT, WITHDRAWAL
-from transactions.forms import (
-    DepositForm,
-    TransactionDateRangeForm,
-    WithdrawForm,
-)
-from transactions.models import Transaction
+from django.shortcuts import render, redirect, get_object_or_404
+from django.views.generic import TemplateView
+from .models import Transaction
+from .forms import FundTransferForm, FundTransferByCardForm
+from accounts.models import Card, Payment
 
 
-class TransactionRepostView(LoginRequiredMixin, ListView):
-    template_name = 'transactions/transaction_report.html'
-    model = Transaction
-    form_data = {}
+class TransactionMenu(TemplateView):
+    template_name = 'transactions/transaction_menu.html'
 
-    def get(self, request, *args, **kwargs):
-        form = TransactionDateRangeForm(request.GET or None)
+
+def fund_transfer(request, card_id=None):
+    card = get_object_or_404(Card, id=card_id) if card_id else 1
+
+    if request.method == 'POST':
+        form = FundTransferForm(request.user, request.POST)
         if form.is_valid():
-            self.form_data = form.cleaned_data
+            receiver_account_number = form.cleaned_data['receiver_account_number']
+            amount = form.cleaned_data['amount']
+            selected_card = form.cleaned_data['card']
+            sender_card = Card.objects.get(id=selected_card.id)
+            try:
+                receiver_card = Card.objects.get(account_no=receiver_account_number)
+            except Exception as e:
+                messages.error(request, f"Error: {e}")
+                return redirect('transactions:fund_transfer')
 
-        return super().get(request, *args, **kwargs)
+            # Check balance
+            if amount > sender_card.balance:
+                messages.error(request, "Insufficient funds to transfer.")
+                return redirect('transactions:fund_transfer')
+            # Check if sender and receiver cards are the same
+            if sender_card == receiver_card:
+                messages.error(request, "Cannot transfer funds from and to the same card.")
+                return redirect('transactions:fund_transfer')
 
-    def get_queryset(self):
-        queryset = super().get_queryset().filter(
-            account=self.request.user.account
-        )
+            if sender_card.currency == 'U' and sender_card.currency != receiver_card.currency:
+                # Assuming conversion rate is 1 USD = 3.116 BYN
+                converted_amount = Decimal(str(amount)) * Decimal(str(3.116))
+            elif sender_card.currency == 'B' and sender_card.currency != receiver_card.currency:
+                # Assuming conversion rate is 1 USD = 3.116 BYN
+                converted_amount = Decimal(str(amount)) / Decimal(str(3.116))
+            else:
+                converted_amount = amount
 
-        daterange = self.form_data.get("daterange")
+            # Deduct amount from sender's balance
+            sender_card.balance -= amount
+            sender_card.save()
 
-        if daterange:
-            queryset = queryset.filter(timestamp__date__range=daterange)
+            # Increase amount to receiver's balance
+            receiver_card.balance += converted_amount
+            receiver_card.save()
 
-        return queryset.distinct()
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({
-            'account': self.request.user.account,
-            'form': TransactionDateRangeForm(self.request.GET or None)
-        })
-
-        return context
-
-
-class TransactionCreateMixin(LoginRequiredMixin, CreateView):
-    template_name = 'transactions/transaction_form.html'
-    model = Transaction
-    title = ''
-    success_url = reverse_lazy('transactions:transaction_report')
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs.update({
-            'account': self.request.user.account
-        })
-        return kwargs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({
-            'title': self.title
-        })
-
-        return context
-
-
-class DepositMoneyView(TransactionCreateMixin):
-    form_class = DepositForm
-    title = 'Deposit Money to Your Account'
-
-    def get_initial(self):
-        initial = {'transaction_type': DEPOSIT}
-        return initial
-
-    def form_valid(self, form):
-        amount = form.cleaned_data.get('amount')
-        account = self.request.user.account
-
-        if not account.initial_deposit_date:
-            now = timezone.now()
-            next_interest_month = int(
-                12 / account.account_type.interest_calculation_per_year
+            # Record the transaction
+            payment = Payment.objects.create(
+                card=receiver_card,
+                amount=receiver_card.balance,
+                currency=receiver_card.currency,
+                card_type=receiver_card.card_type,
+                deposit_pending=True
             )
-            account.initial_deposit_date = now
-            account.interest_start_date = (
-                now + relativedelta(
-                    months=+next_interest_month
+            payment = Payment.objects.create(
+                card=sender_card,
+                amount=sender_card.balance,
+                currency=sender_card.currency,
+                card_type=sender_card.card_type,
+            )
+            return redirect('accounts:card_list')
+    else:
+        form = FundTransferForm(request.user)
+
+    return render(request, 'transactions/fund_transfer.html', {'form': form, 'card': card})
+
+
+def fund_transfer_card_by_card(request, card_id=None):
+    card = get_object_or_404(Card, id=card_id) if card_id else 1
+
+    if request.method == 'POST':
+        form = FundTransferByCardForm(request.user, request.POST)
+        if form.is_valid():
+            card_one = form.cleaned_data['card_one']
+            card_two = form.cleaned_data['card_two']
+            amount = form.cleaned_data['amount']
+
+            sender_card = Card.objects.get(id=card_one.id)
+            receiver_card = Card.objects.get(id=card_two.id)
+
+            # Check balance
+            if amount > sender_card.balance:
+                messages.error(request, "Insufficient funds to transfer.")
+                return redirect('transactions:fund_transfer_card_by_card')
+
+            # Check if sender and receiver cards are the same
+            if sender_card == receiver_card:
+                messages.error(request, "Cannot transfer funds from and to the same card.")
+                return redirect('transactions:fund_transfer_card_by_card')
+
+            if sender_card.currency == 'U' and sender_card.currency != receiver_card.currency:
+                # Assuming conversion rate is 1 USD = 3.116 BYN
+                converted_amount = Decimal(str(amount)) * Decimal(str(3.116))
+                payment = Payment.objects.create(
+                    card=sender_card,
+                    amount=converted_amount,
+                    currency=sender_card.currency,
+                    card_type=sender_card.card_type,
                 )
+            elif sender_card.currency == 'B' and sender_card.currency != receiver_card.currency:
+                # Assuming conversion rate is 1 USD = 3.116 BYN
+                converted_amount = Decimal(str(amount)) / Decimal(str(3.116))
+                payment = Payment.objects.create(
+                    card=sender_card,
+                    amount=converted_amount,
+                    currency=sender_card.currency,
+                    card_type=sender_card.card_type,
+                )
+            else:
+                converted_amount = amount
+                payment = Payment.objects.create(
+                    card=sender_card,
+                    amount=converted_amount,
+                    currency=sender_card.currency,
+                    card_type=sender_card.card_type,
+                )
+
+            # Deduct amount from sender's balance
+            sender_card.balance -= amount
+            sender_card.save()
+
+            # Increase amount to receiver's balance
+            receiver_card.balance += converted_amount
+            receiver_card.save()
+
+            # Record the transaction
+            payment = Payment.objects.create(
+                card=receiver_card,
+                amount=converted_amount,
+                currency=receiver_card.currency,
+                card_type=receiver_card.card_type,
+                deposit_pending=True
             )
+            return redirect('accounts:card_list')
+    else:
+        form = FundTransferByCardForm(request.user)
 
-        account.balance += amount
-        account.save(
-            update_fields=[
-                'initial_deposit_date',
-                'balance',
-                'interest_start_date'
-            ]
-        )
+    return render(request, 'transactions/fund_transfer_card_by_card.html', {'form': form, 'card': card})
 
-        messages.success(
-            self.request,
-            f'{amount}₹ was deposited to your account successfully'
-        )
-
-        return super().form_valid(form)
-
-
-class WithdrawMoneyView(TransactionCreateMixin):
-    form_class = WithdrawForm
-    title = 'Withdraw Money from Your Account'
-
-    def get_initial(self):
-        initial = {'transaction_type': WITHDRAWAL}
-        return initial
-
-    def form_valid(self, form):
-        amount = form.cleaned_data.get('amount')
-
-        self.request.user.account.balance -= form.cleaned_data.get('amount')
-        self.request.user.account.save(update_fields=['balance'])
-
-        messages.success(
-            self.request,
-            f'Successfully withdrawn {amount}₹ from your account'
-        )
-
-        return super().form_valid(form)

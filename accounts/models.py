@@ -114,7 +114,7 @@ class Card(models.Model):
         return True, "Payment successful"
 
     def __str__(self):
-        return f"{self.card_name} {self.balance} {self.currency}"
+        return f"{self.user.first_name} {self.user.last_name}- {self.card_name} {self.balance} {self.currency}"
 
 
 class Payment(models.Model):

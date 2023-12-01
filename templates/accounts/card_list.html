@@ -46,9 +46,9 @@
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.show-cvv').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        var cardId = this.dataset.cardId;
-        var cvvCode = this.dataset.cvvCode;
-        var cvvElement = document.getElementById('cvv-' + cardId);
+        let cardId = this.dataset.cardId;
+        let cvvCode = this.dataset.cvvCode;
+        let cvvElement = document.getElementById('cvv-' + cardId);
 
         if (cvvElement.textContent === cvvCode) {
           cvvElement.textContent = '***';

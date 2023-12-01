@@ -1,13 +1,12 @@
 from django.urls import path
 
-from .views import DepositMoneyView, WithdrawMoneyView, TransactionRepostView
-
+from .views import fund_transfer, fund_transfer_card_by_card, TransactionMenu
 
 app_name = 'transactions'
 
 
 urlpatterns = [
-    path("deposit/", DepositMoneyView.as_view(), name="deposit_money"),
-    path("report/", TransactionRepostView.as_view(), name="transaction_report"),
-    path("withdraw/", WithdrawMoneyView.as_view(), name="withdraw_money"),
+    path('fund_transfer/', fund_transfer, name='fund_transfer'),
+    path('fund_transfer_card_by_card/', fund_transfer_card_by_card, name='fund_transfer_card_by_card'),
+    path('transaction_menu/', TransactionMenu.as_view(), name='transaction_menu'),
 ]

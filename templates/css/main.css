@@ -3,3 +3,7 @@
   transform: scale(1.05);
   transition: box-shadow 0.3s, transform 0.3s;
 }
+
+.group:hover .absolute {
+    display: block;
+}
