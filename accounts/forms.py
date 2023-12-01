@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.db import transaction
@@ -125,3 +127,24 @@ class PaymentForm(forms.Form):
 class StatementFilterForm(forms.Form):
     start_date = forms.DateField(widget=SelectDateWidget(empty_label=("Choose Year", "Choose Month", "Choose Day")))
     end_date = forms.DateField(widget=SelectDateWidget(empty_label=("Choose Year", "Choose Month", "Choose Day")))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Set the default end_date to today
+        self.fields['end_date'].initial = datetime.now().date()
+
+        # Set the default start_date to one month before the end_date
+        default_start_date = self.fields['end_date'].initial - timedelta(days=30)
+        self.fields['start_date'].initial = default_start_date
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
+
+        # Ensure start_date is not after end_date
+        if start_date and end_date and start_date > end_date:
+            raise forms.ValidationError("Start date cannot be after end date")
+
+        return cleaned_data

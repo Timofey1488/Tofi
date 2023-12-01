@@ -1,12 +1,25 @@
 {% extends 'core/base.html' %}
-
 {% block content %}
-  <div class="container mx-auto mt-8">
-    <h2 class="text-3xl font-semibold mb-4">Your cards</h2>
+      <style>
+      .card-container {
+        transition: transform 0.3s;
+      }
 
+      .card-container:hover {
+          transform: scale(1.03)  !important;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1)  !important;
+      }
+    </style>
+  <div class="container mx-auto mt-8">
+    <h2 class="text-3xl font-semibold mb-4 ">Your cards</h2>
+    <div class="flex items-center justify-center mt-4 mb-8">
+        <button class="bg-blue-500 text-center hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+            <a href="{% url 'accounts:create_card' %}">Create new card</a>
+        </button>
+      </div>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {% for card in cards %}
-        <div class="bg-white rounded-lg overflow-hidden shadow-md">
+       <div class="bg-white rounded-lg overflow-hidden shadow-md card-container">
           <div class="p-4">
             <h5 class="text-xl font-semibold mb-2">{{ card.card_name }}</h5>
               <p class="text-gray-600 mb-2">Card Type: {{ card.get_card_type_display }}</p>
@@ -27,11 +40,6 @@
         </div>
       {% endfor %}
     </div>
-      <div class="flex items-center justify-center mt-8">
-        <button class="bg-blue-500 text-center hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-            <a href="{% url 'accounts:create_card' %}">Create new card</a>
-        </button>
-      </div>
   </div>
 
 <script>

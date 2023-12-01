@@ -260,7 +260,7 @@ def statement(request, card_id):
         start_date = form.cleaned_data['start_date']
         end_date = form.cleaned_data['end_date']
 
-        payments = Payment.objects.filter(card__user=request.user, timestamp__range=[start_date, end_date])
+        payments = Payment.objects.filter(card=card, timestamp__range=[start_date, end_date])
         total_spent = payments.aggregate(Sum('amount'))['amount__sum'] or 0
     else:
         payments = []
