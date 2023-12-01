@@ -54,7 +54,7 @@ class UserRegistrationView(TemplateView):
                 )
             )
             return HttpResponseRedirect(
-                reverse_lazy('transactions:deposit_money')
+                reverse_lazy('accounts:user_profile')
             )
 
         return self.render_to_response(
@@ -71,26 +71,6 @@ class UserRegistrationView(TemplateView):
             kwargs['address_form'] = UserAddressForm()
 
         return super().get_context_data(**kwargs)
-
-
-def register_confirm(request, token):
-    redis_key = settings.BANK_USER_CONFIRMATION_KEY.format(token=token)
-    user_info = cache.get(redis_key) or {}
-
-    if user_id := user_info.get("user_id"):
-        user = get_object_or_404(User, id=user_id)
-        user.is_active = True
-        user.save(update_fields=["is_active"])
-        login(request, user)
-        messages.success(
-            request,
-            (
-                f'Thank You For Creating A Bank Account. '
-            )
-        )
-        return redirect(to=reverse_lazy("accounts:user_profile"))
-    else:
-        return redirect(to=reverse_lazy("accounts:user_registration"))
 
 
 class UserLoginView(LoginView):
@@ -211,10 +191,12 @@ class CardCreateView(View):
                 card = form.save(commit=False)
                 card.user = request.user
                 card.save()
-                logger.warning("Success")
+                logger.warning("Card creation successful")
                 return redirect('accounts:card_list')
         except Exception as e:
-            logger.error(f"Some error:{str(e)}")
+            logger.error(f"Error during card creation: {str(e)}")
+            # Raise the exception again for debugging purposes
+            raise
         return render(request, self.template_name, {'form': form})
 
 

@@ -1,16 +1,20 @@
 {% extends 'core/base.html' %}
 
-<style>
-  .center {
-      display: grid;
-      place-items: center;
-  }
-</style>
 
 {% block content %}
      <h1 class="font-mono font-bold text-3xl text-center pb-5 pt-10">Create a New Card</h1>
  <form method="post" class="max-w-md mx-auto bg-white p-8 rounded shadow-md">
   {% csrf_token %}
+    <div class="mb-6">
+        <label for="card_name" class="block text-gray-700 text-sm font-bold mb-2">Card Name</label>
+       <input type="text" name="card_name" id="card_name" class="mt-1 p-2 border border-gray-300 rounded-md w-full" placeholder="Enter the card name">
+           {% if form.card_name.errors %}
+     {% for error in form.card_name.errors %}
+         <p class="text-red-600 text-sm italic">{{ error }}</p>
+     {% endfor %}
+ {% endif %}
+    </div>
+
   <div class="mb-6">
     <label for="card_type" class="block text-gray-700 text-sm font-bold mb-2">Card Type</label>
     <select name="card_type" id="card_type" class="w-full p-2 border border-gray-300 rounded">
