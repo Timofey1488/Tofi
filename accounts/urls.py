@@ -1,7 +1,8 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from .views import (UserRegistrationView, LogoutView, UserLoginView, UserProfileView, change_password, CardCreateView,
-                    CardListView,  deposit_card, StaffProfileView, make_payment, statement)
+                    CardListView, deposit_card, StaffProfileView, make_payment, statement, deposit_approval,
+                    deposit_approval_list)
 
 app_name = 'accounts'
 
@@ -52,6 +53,12 @@ urlpatterns = [
     path(
         'deposit_card/<int:card_id>', deposit_card,
         name='deposit_form'
+    ),
+    path(
+        'deposit-approval/', deposit_approval_list, name='deposit_approval_list'
+    ),
+    path(
+        'deposit-approval/<int:card_id>/', deposit_approval, name='deposit_approval'
     ),
 
 ]

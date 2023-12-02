@@ -16,7 +16,7 @@ from django.views.generic import TemplateView, RedirectView
 from banking_system import settings
 from .constants import CURRENCY
 from .forms import UserRegistrationForm, UserAddressForm, ChangePasswordForm, CardCreationForm, EmailVerificationForm, \
-    DepositCardForm, PaymentForm, StatementFilterForm
+    DepositCardForm, PaymentForm, StatementFilterForm, DepositApprovalForm
 from .models import UserAddress, UserBankAccount, User, Card, Payment
 import logging
 
@@ -242,6 +242,47 @@ def deposit_card(request, card_id):
         form = DepositCardForm()
 
     return render(request, 'accounts/deposit_form.html', {'form': form, 'card': card})
+
+
+def deposit_approval_list(request):
+    pending_deposit_cards = Card.objects.filter(deposit_pending=True)
+    return render(request, 'accounts/deposit_approval_list.html', {'pending_deposit_cards': pending_deposit_cards})
+
+
+def deposit_approval(request, card_id):
+    card = get_object_or_404(Card, id=card_id)
+
+    if request.method == 'POST':
+        form = DepositApprovalForm(request.POST)
+        if form.is_valid():
+            approved = form.cleaned_data['approved']
+
+            if approved:
+                # Process the approved deposit
+                card.balance += card.pending_deposit_amount
+                card.pending_deposit_amount = 0
+                card.deposit_pending = False
+                card.save()
+
+                # You may want to create a transaction record or log the deposit approval here
+
+                messages.success(request, f"Deposit request for Card {card.account_no} approved.")
+            else:
+                # Reject the deposit
+                card.pending_deposit_amount = 0
+                card.deposit_pending = False
+                card.save()
+
+                # You may want to log the deposit rejection here
+
+                messages.warning(request, f"Deposit request for Card {card.account_no} rejected.")
+
+            return redirect('accounts:deposit_approval_list')
+
+    else:
+        form = DepositApprovalForm()
+
+    return render(request, 'accounts/deposit_approval_form.html', {'form': form, 'card': card})
 
 
 def statement(request, card_id):

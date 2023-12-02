@@ -156,3 +156,7 @@ class StatementFilterForm(forms.Form):
             raise forms.ValidationError("Start date cannot be after end date")
 
         return cleaned_data
+
+
+class DepositApprovalForm(forms.Form):
+    approved = forms.BooleanField(label='Approve deposit', required=False)
