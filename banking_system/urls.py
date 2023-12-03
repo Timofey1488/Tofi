@@ -26,5 +26,9 @@ urlpatterns = [
     path(
         'transactions/',
         include('transactions.urls', namespace='transactions')
+    ),
+    path(
+        'credits/',
+        include('credits.urls', namespace='credits')
     )
 ]

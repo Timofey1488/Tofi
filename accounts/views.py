@@ -2,6 +2,7 @@ import uuid
 from datetime import timedelta
 
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import login, logout, update_session_auth_hash, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
@@ -14,6 +15,7 @@ from django.views import View
 from django.views.generic import TemplateView, RedirectView
 
 from banking_system import settings
+from credits.models import CreditApplication
 from .constants import CURRENCY
 from .forms import UserRegistrationForm, UserAddressForm, ChangePasswordForm, CardCreationForm, EmailVerificationForm, \
     DepositCardForm, PaymentForm, StatementFilterForm, DepositApprovalForm
@@ -244,11 +246,13 @@ def deposit_card(request, card_id):
     return render(request, 'accounts/deposit_form.html', {'form': form, 'card': card})
 
 
+@staff_member_required
 def deposit_approval_list(request):
     pending_deposit_cards = Card.objects.filter(deposit_pending=True)
     return render(request, 'accounts/deposit_approval_list.html', {'pending_deposit_cards': pending_deposit_cards})
 
 
+@staff_member_required
 def deposit_approval(request, card_id):
     card = get_object_or_404(Card, id=card_id)
 
@@ -264,16 +268,12 @@ def deposit_approval(request, card_id):
                 card.deposit_pending = False
                 card.save()
 
-                # You may want to create a transaction record or log the deposit approval here
-
                 messages.success(request, f"Deposit request for Card {card.account_no} approved.")
             else:
                 # Reject the deposit
                 card.pending_deposit_amount = 0
                 card.deposit_pending = False
                 card.save()
-
-                # You may want to log the deposit rejection here
 
                 messages.warning(request, f"Deposit request for Card {card.account_no} rejected.")
 

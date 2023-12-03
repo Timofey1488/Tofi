@@ -88,9 +88,9 @@ class Card(models.Model):
 
         if card_type == 'C':
             if not self.is_deposit_allowed:
-                return False, "Deposit not allowed for credit card"
+                return False, "Deposit not allowed for credits card"
             elif self.balance < amount:
-                return False, "Insufficient funds for credit card payment"
+                return False, "Insufficient funds for credits card payment"
         elif card_type == 'D':
             if self.balance < amount:
                 return False, "Insufficient funds for debit card"

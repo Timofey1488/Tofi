@@ -41,6 +41,18 @@
                          Transfers
                     </a>
                 {% endif %}
+            {% if request.user.is_staff %}
+                    <a href="{% url 'credits:credit_list' %}" class="block mt-4 lg:inline-block lg:mt-0 text-white hover:text-white mr-4">
+                         Client Credits
+                    </a>
+                {% else %}
+                    <a href="{% url 'credits:apply_credit' %}" class="block mt-4 lg:inline-block lg:mt-0 text-white hover:text-white mr-4">
+                         New Credit
+                    </a>
+                    <a href="{% url 'credits:active_credits' %}" class="block mt-4 lg:inline-block lg:mt-0 text-white hover:text-white mr-4">
+                         Active Credits
+                    </a>
+                {% endif %}
 
 
             </div>

@@ -5,9 +5,6 @@ from credits.constants import CREDIT_STATUS, STATUS
 
 
 class CreditApplication(models.Model):
-    """
-    Model for a loan application.
-    """
     user = models.ForeignKey(
         User,
         related_name='user_credit_application',
@@ -20,9 +17,6 @@ class CreditApplication(models.Model):
 
 
 class Credit(models.Model):
-    """
-    Model for granted credit.
-    """
     user = models.ForeignKey(
         User,
         related_name='user_credit',
