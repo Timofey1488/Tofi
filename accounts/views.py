@@ -5,21 +5,17 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import login, logout, update_session_auth_hash, authenticate
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.views import LoginView
-from django.core.cache import cache
-from django.db.models import Sum, F
-from django.http import HttpResponse
+from django.db.models import Sum
 from django.shortcuts import HttpResponseRedirect, get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import TemplateView, RedirectView
 
-from banking_system import settings
-from credits.models import CreditApplication
-from .constants import CURRENCY
-from .forms import UserRegistrationForm, UserAddressForm, ChangePasswordForm, CardCreationForm, EmailVerificationForm, \
+from .forms import UserRegistrationForm, UserAddressForm, ChangePasswordForm, CardCreationForm,\
     DepositCardForm, PaymentForm, StatementFilterForm, DepositApprovalForm, SavingsGoalForm
-from .models import UserAddress, UserBankAccount, User, Card, Payment, SavingsGoal
+from .models import UserAddress, User, Card, Payment, SavingsGoal
 import logging
 
 from .utils import convert_currency
@@ -100,12 +96,6 @@ class UserProfileView(TemplateView):
         context['user_profile_exists'] = True
 
         try:
-            user_bank_account = UserBankAccount.objects.get(user=user)
-            context['bank_account'] = user_bank_account
-        except UserAddress.DoesNotExist:
-            context['bank_account'] = None
-
-        try:
             user_address = UserAddress.objects.get(user=user)
             context['address'] = user_address
         except UserAddress.DoesNotExist:
@@ -153,34 +143,23 @@ class StaffProfileView(TemplateView):
 @login_required
 def change_password(request):
     if request.method == 'POST':
-        form = ChangePasswordForm(request.POST)
+        form = PasswordChangeForm(request.user, request.POST)
         if form.is_valid():
-            user = request.user
-            old_password = form.cleaned_data['old_password']
-            new_password1 = form.cleaned_data['new_password1']
-            new_password2 = form.cleaned_data['new_password2']
-
-            if user.check_password(old_password) and new_password1 == new_password2:
-                user.set_password(new_password1)
-                user.save()
-                update_session_auth_hash(request, user)
-                messages.success(request, 'Password successfully changed.')
-
-                user = authenticate(request, username=request.user.username, password=new_password1)
-                login(request, user)
-                return HttpResponseRedirect(
-                    reverse_lazy('accounts:user_profile')
-                )
-            else:
-                messages.error(request, 'Invalid old password or new passwords do not match.')
+            user = form.save()
+            update_session_auth_hash(request, user)  # Обновление хеша сессии, чтобы избежать разлогинивания
+            messages.success(request, 'Password successfully changed.')
+            return redirect('accounts:user_profile')
+        else:
+            messages.error(request, 'Invalid old password or new passwords do not match.')
     else:
-        form = ChangePasswordForm()
+        form = PasswordChangeForm(request.user)
 
     return render(request, 'accounts/password_change.html', {'form': form})
 
 
 class CardCreateView(View):
     template_name = 'accounts/create_card.html'
+    success_url = 'accounts:card_list'
 
     def get(self, request):
         form = CardCreationForm()
@@ -194,7 +173,7 @@ class CardCreateView(View):
                 card.user = request.user
                 card.save()
                 logger.warning("Card creation successful")
-                return redirect('accounts:card_list')
+                return redirect(self.success_url)
         except Exception as e:
             logger.error(f"Error during card creation: {str(e)}")
             # Raise the exception again for debugging purposes
@@ -206,13 +185,17 @@ class CardListView(View):
     template_name = 'accounts/card_list.html'
 
     def get(self, request):
-        user = request.user
-        if not user.has_cards():
+        if request.user.is_authenticated:
+            user = request.user
+            if not user.has_cards():
+                return render(request, 'accounts/no_cards.html')
+            cards = user.user_cards.all()
+            return render(request, self.template_name, {'cards': cards})
+        else:
             return render(request, 'accounts/no_cards.html')
-        cards = user.user_cards.all()
-        return render(request, self.template_name, {'cards': cards})
 
 
+@login_required
 def deposit_card(request, card_id):
     card = Card.objects.get(id=card_id)
 
@@ -285,6 +268,7 @@ def deposit_approval(request, card_id):
     return render(request, 'accounts/deposit_approval_form.html', {'form': form, 'card': card})
 
 
+@login_required
 def statement(request, card_id):
     form = StatementFilterForm(request.GET or None)
     card = Card.objects.get(id=card_id)
@@ -313,7 +297,10 @@ def statement(request, card_id):
         'card': card,
     })
 
+# ----------------Savings Goals-----------------------
 
+
+@login_required
 def create_savings_goal(request):
     if request.method == 'POST':
         form = SavingsGoalForm(request.POST)
@@ -328,6 +315,7 @@ def create_savings_goal(request):
     return render(request, 'accounts/create_savings_goal.html', {'form': form})
 
 
+@login_required
 def review_savings_plan(request, goal_id):
     savings_goal = get_object_or_404(SavingsGoal, id=goal_id)
 
@@ -351,6 +339,7 @@ def review_savings_plan(request, goal_id):
     return render(request, 'accounts/review_savings_plan.html', context)
 
 
+@login_required
 def savings_goal_list(request):
     user = request.user
     active_goals = SavingsGoal.objects.filter(user=user, approved=True)
@@ -362,6 +351,7 @@ def savings_goal_list(request):
     return render(request, 'accounts/savings_goal_list.html', context)
 
 
+@login_required
 def edit_savings_goal(request, goal_id):
     savings_goal = get_object_or_404(SavingsGoal, id=goal_id)
 
@@ -390,6 +380,7 @@ def edit_savings_goal(request, goal_id):
     return render(request, 'accounts/edit_savings_goal.html', context)
 
 
+@login_required
 def delete_savings_goal(request, goal_id):
     goal = get_object_or_404(SavingsGoal, id=goal_id)
 

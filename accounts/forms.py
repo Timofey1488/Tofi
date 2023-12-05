@@ -7,7 +7,7 @@ from django.db import transaction
 from django.forms import SelectDateWidget
 from django.utils import timezone
 
-from .models import User, UserBankAccount, UserAddress, Card, SavingsGoal
+from .models import User,  UserAddress, Card, SavingsGoal
 from .constants import GENDER_CHOICE, CARD_TYPE, CURRENCY
 
 
@@ -69,14 +69,6 @@ class UserRegistrationForm(UserCreationForm):
         user.set_password(self.cleaned_data["password1"])
         if commit:
             user.save()
-            gender = self.cleaned_data.get('gender')
-            birth_date = self.cleaned_data.get('birth_date')
-
-            UserBankAccount.objects.create(
-                user=user,
-                gender=gender,
-                birth_date=birth_date,
-            )
         return user
 
 
@@ -176,8 +168,3 @@ class SavingsGoalForm(forms.ModelForm):
                 raise ValidationError("A savings goal with this name already exists.")
             return goal_name
 
-        def clean_target_date(self):
-            target_date = self.cleaned_data['target_date']
-            if target_date < timezone.now().date():
-                raise ValidationError("Please select a future date for the savings goal.")
-            return target_date

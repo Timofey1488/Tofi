@@ -1,9 +1,7 @@
-import datetime
+
 import random
 
 from django.core.validators import MinValueValidator
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.utils import timezone
 
 from django.contrib.auth.models import AbstractUser
@@ -11,7 +9,6 @@ from django.db import models, transaction
 
 from .constants import GENDER_CHOICE, CURRENCY, CARD_TYPE, PERIOD_DEPOSIT
 from .managers import UserManager
-from .utils import convert_currency
 
 
 class User(AbstractUser):
@@ -31,28 +28,20 @@ class User(AbstractUser):
     def has_cards(self):
         return self.user_cards.exists()
 
-    # @property
-    # def balance(self):
-    #     if hasattr(self, 'user_cards'):
-    #         return self.user_cards.balance
-    #     return 0
 
-
-class UserBankAccount(models.Model):
+class UserAddress(models.Model):
     user = models.OneToOneField(
         User,
-        related_name='account',
+        related_name='user_address',
         on_delete=models.CASCADE,
     )
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICE)
-    birth_date = models.DateField(null=True, blank=True)
-    interest_start_date = models.DateField(
-        null=True, blank=True,
-        help_text=(
-            'The month number that interest calculation will start from'
-        )
-    )
-    initial_deposit_date = models.DateField(null=True, blank=True)
+    street_address = models.CharField(max_length=512)
+    city = models.CharField(max_length=256)
+    postal_code = models.PositiveIntegerField()
+    country = models.CharField(max_length=256)
+
+    def __str__(self):
+        return self.user.email
 
 
 class Card(models.Model):
@@ -140,27 +129,12 @@ class Payment(models.Model):
         return f"{self.card.id} - {self.amount} {self.currency} ({self.timestamp})"
 
 
-class UserAddress(models.Model):
-    user = models.OneToOneField(
-        User,
-        related_name='user_address',
-        on_delete=models.CASCADE,
-    )
-    street_address = models.CharField(max_length=512)
-    city = models.CharField(max_length=256)
-    postal_code = models.PositiveIntegerField()
-    country = models.CharField(max_length=256)
-
-    def __str__(self):
-        return self.user.email
-
-
 #  Class for create of Money Box
 class SavingsGoal(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     goal_name = models.CharField(max_length=255, unique=True)
     target_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    target_date = models.DateField(validators=[MinValueValidator(timezone.now().date())])
+    target_date = models.DateField(validators=[MinValueValidator(timezone.now().date()+timezone.timedelta(days=30))])
     is_active = models.BooleanField(default=True)
     approved = models.BooleanField(default=False)
     monthly_payment = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], default=0)

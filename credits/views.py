@@ -72,8 +72,6 @@ def approve_credit(request, credit_app_id):
 
 
 def calculate_monthly_payment(loan_amount):
-    # You need to implement a function to calculate the monthly payment based on your interest rate and term duration.
-    # This is a simplified example; you may want to use a library or a more complex formula.
     interest_rate = Decimal('0.05')  # Example interest rate of 5%
     term_months = Decimal('12')  # Example term duration of 12 months
 

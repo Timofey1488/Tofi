@@ -1,7 +1,7 @@
 from django.db import models
 
 from .constants import TRANSACTION_TYPE_CHOICES
-from accounts.models import UserBankAccount, Card
+from accounts.models import  Card
 
 
 class Transaction(models.Model):
