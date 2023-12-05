@@ -2,10 +2,12 @@ from datetime import datetime, timedelta
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.forms import SelectDateWidget
+from django.utils import timezone
 
-from .models import User, UserBankAccount, UserAddress, Card
+from .models import User, UserBankAccount, UserAddress, Card, SavingsGoal
 from .constants import GENDER_CHOICE, CARD_TYPE, CURRENCY
 
 
@@ -160,3 +162,22 @@ class StatementFilterForm(forms.Form):
 
 class DepositApprovalForm(forms.Form):
     approved = forms.BooleanField(label='Approve deposit', required=False)
+
+
+class SavingsGoalForm(forms.ModelForm):
+    class Meta:
+        model = SavingsGoal
+        fields = ['goal_name', 'target_amount', 'target_date']
+
+        def clean_goal_name(self):
+            goal_name = self.cleaned_data['goal_name']
+            existing_goal = SavingsGoal.objects.filter(goal_name=goal_name).first()
+            if existing_goal:
+                raise ValidationError("A savings goal with this name already exists.")
+            return goal_name
+
+        def clean_target_date(self):
+            target_date = self.cleaned_data['target_date']
+            if target_date < timezone.now().date():
+                raise ValidationError("Please select a future date for the savings goal.")
+            return target_date

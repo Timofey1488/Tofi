@@ -1,0 +1,35 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-8 bg-white p-8 rounded shadow-md">
+  <h2 class="text-2xl font-semibold mb-4">Savings Goal Details</h2>
+
+  <dl class="mb-4">
+    <div class="flex">
+      <dt class="text-gray-600 font-bold mr-2">Goal Name:</dt>
+      <dd>{{ goal.goal_name }}</dd>
+    </div>
+
+    <div class="flex">
+      <dt class="text-gray-600 font-bold mr-2">Target Amount:</dt>
+      <dd>{{ goal.target_amount }}</dd>
+    </div>
+
+    <div class="flex">
+      <dt class="text-gray-600 font-bold mr-2">Target Date:</dt>
+      <dd>{{ goal.target_date }}</dd>
+    </div>
+
+    <div class="flex">
+      <dt class="text-gray-600 font-bold mr-2">Status:</dt>
+      <dd>{{ goal.is_active|yesno:"Active,Inactive" }}</dd>
+    </div>
+  </dl>
+
+  <a href="{% url 'accounts:calculate_savings_plan' goal.id %}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+    Calculate Savings Plan
+  </a>
+</div>
+
+
+{% endblock %}

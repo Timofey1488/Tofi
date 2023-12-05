@@ -1,0 +1,15 @@
+{% extends 'core/base.html' %}
+{% block content %}
+  <h2 class="text-2xl font-semibold mb-4">Delete Savings Goal</h2>
+
+  <p>Are you sure you want to delete the savings goal "{{ goal.goal_name }}"?</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+      Confirm Delete
+    </button>
+  </form>
+
+  <a href="{% url 'accounts:savings_goal_list' %}" class="text-blue-500 hover:underline mt-2">Cancel</a>
+{% endblock %}

@@ -7,7 +7,7 @@ from django.contrib.auth import login, logout, update_session_auth_hash, authent
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.core.cache import cache
-from django.db.models import Sum
+from django.db.models import Sum, F
 from django.http import HttpResponse
 from django.shortcuts import HttpResponseRedirect, get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -18,8 +18,8 @@ from banking_system import settings
 from credits.models import CreditApplication
 from .constants import CURRENCY
 from .forms import UserRegistrationForm, UserAddressForm, ChangePasswordForm, CardCreationForm, EmailVerificationForm, \
-    DepositCardForm, PaymentForm, StatementFilterForm, DepositApprovalForm
-from .models import UserAddress, UserBankAccount, User, Card, Payment
+    DepositCardForm, PaymentForm, StatementFilterForm, DepositApprovalForm, SavingsGoalForm
+from .models import UserAddress, UserBankAccount, User, Card, Payment, SavingsGoal
 import logging
 
 from .utils import convert_currency
@@ -312,3 +312,91 @@ def statement(request, card_id):
         'total_spent': total_spent,
         'card': card,
     })
+
+
+def create_savings_goal(request):
+    if request.method == 'POST':
+        form = SavingsGoalForm(request.POST)
+        if form.is_valid():
+            savings_goal = form.save(commit=False)
+            savings_goal.user = request.user
+            savings_goal.save()
+            return redirect('accounts:review_savings_plan', goal_id=savings_goal.id)
+    else:
+        form = SavingsGoalForm()
+
+    return render(request, 'accounts/create_savings_goal.html', {'form': form})
+
+
+def review_savings_plan(request, goal_id):
+    savings_goal = get_object_or_404(SavingsGoal, id=goal_id)
+
+    total_months = (savings_goal.target_date.year - savings_goal.created_at.year) * 12 + savings_goal.target_date.month - savings_goal.created_at.month
+    monthly_savings_amount = round(savings_goal.target_amount / total_months)
+
+    context = {
+        'savings_goal': savings_goal,
+        'total_months': total_months,
+        'monthly_savings_amount': monthly_savings_amount,
+    }
+
+    if request.method == 'POST':
+        # Обработка нажатия кнопки "Approve"
+        savings_goal.approved = True
+        savings_goal.is_active = False  # Отключаем цель после одобрения
+        savings_goal.monthly_payment = monthly_savings_amount
+        savings_goal.save()
+        return redirect('accounts:savings_goal_list')
+
+    return render(request, 'accounts/review_savings_plan.html', context)
+
+
+def savings_goal_list(request):
+    user = request.user
+    active_goals = SavingsGoal.objects.filter(user=user, approved=True)
+
+    context = {
+        'active_goals': active_goals,
+    }
+
+    return render(request, 'accounts/savings_goal_list.html', context)
+
+
+def edit_savings_goal(request, goal_id):
+    savings_goal = get_object_or_404(SavingsGoal, id=goal_id)
+
+    if request.method == 'POST':
+        form = SavingsGoalForm(request.POST, instance=savings_goal)
+        if form.is_valid():
+            savings_goal = form.save(commit=False)
+
+            # Пересчитываем monthly_amount при изменении target_amount или target_date
+            if 'target_amount' in form.changed_data or 'target_date' in form.changed_data:
+                total_months = (
+                                           savings_goal.target_date.year - savings_goal.created_at.year) * 12 + savings_goal.target_date.month - savings_goal.created_at.month
+                savings_goal.monthly_amount = savings_goal.target_amount / total_months
+
+            savings_goal.save()
+
+            return redirect('accounts:savings_goal_list')
+    else:
+        form = SavingsGoalForm(instance=savings_goal)
+
+    context = {
+        'form': form,
+        'savings_goal': savings_goal,
+    }
+
+    return render(request, 'accounts/edit_savings_goal.html', context)
+
+
+def delete_savings_goal(request, goal_id):
+    goal = get_object_or_404(SavingsGoal, id=goal_id)
+
+    if request.method == 'POST':
+        goal.delete()
+        messages.success(request, f"Goal was successfully deleted!.")
+        return redirect('accounts:savings_goal_list')
+
+    return render(request, 'accounts/delete_savings_goal.html', {'goal': goal})
+

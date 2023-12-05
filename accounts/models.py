@@ -1,5 +1,9 @@
 import datetime
 import random
+
+from django.core.validators import MinValueValidator
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils import timezone
 
 from django.contrib.auth.models import AbstractUser
@@ -152,6 +156,20 @@ class UserAddress(models.Model):
 
 
 #  Class for create of Money Box
+class SavingsGoal(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    goal_name = models.CharField(max_length=255, unique=True)
+    target_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    target_date = models.DateField(validators=[MinValueValidator(timezone.now().date())])
+    is_active = models.BooleanField(default=True)
+    approved = models.BooleanField(default=False)
+    monthly_payment = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.goal_name} - {self.user.first_name}  {self.user.last_name}"
+
+
 class UserAim(models.Model):
     user = models.OneToOneField(
         User,
