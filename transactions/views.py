@@ -28,7 +28,7 @@ def fund_transfer(request, card_id=None):
                 return redirect('transactions:fund_transfer')
 
             # Check balance
-            if amount > sender_card.balance:
+            if selected_card.card_type != 'C' and amount > sender_card.balance:
                 messages.error(request, "Insufficient funds to transfer.")
                 return redirect('transactions:fund_transfer')
             # Check if sender and receiver cards are the same
@@ -88,7 +88,7 @@ def fund_transfer_card_by_card(request, card_id=None):
             receiver_card = Card.objects.get(id=card_two.id)
 
             # Check balance
-            if amount > sender_card.balance:
+            if card_one.card_type != 'C' and amount > sender_card.balance:
                 messages.error(request, "Insufficient funds to transfer.")
                 return redirect('transactions:fund_transfer_card_by_card')
 
