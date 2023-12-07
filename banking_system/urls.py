@@ -40,7 +40,7 @@ urlpatterns = [
     path(
         'change-password/',
         PasswordChangeView.as_view(
-            template_name='commons/change-password.html',
+            template_name='commons/password_change.html',
             success_url='/'
         ),
         name='change_password'

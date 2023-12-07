@@ -1,5 +1,5 @@
 import logging
-from decimal import Decimal
+from decimal import Decimal, getcontext
 
 from accounts.constants import CURRENCY
 
@@ -13,11 +13,11 @@ def convert_currency(amount, from_currency, to_currency, rate):
     if from_currency == to_currency:
         return amount
     else:
-        # Ensure amount is a Decimal
+        # Устанавливаем точность для объектов Decimal
+        getcontext().prec = 10
+
         amount = Decimal(str(amount))
-        # Ensure rate is a Decimal
         rate = Decimal(str(rate))
-        # Perform the multiplication
         result = amount / rate
 
         return result

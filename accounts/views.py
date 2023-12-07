@@ -1,16 +1,14 @@
 from datetime import timedelta
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib.auth import login, logout, update_session_auth_hash, authenticate
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import PasswordChangeForm
-from django.contrib.auth.views import LoginView, PasswordChangeView
-from django.contrib.messages.views import SuccessMessageMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import LoginView
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.mail import EmailMessage
 from django.db.models import Sum
-from django.http import JsonResponse
-from django.shortcuts import HttpResponseRedirect, get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.views import View
@@ -19,9 +17,9 @@ from django_otp import match_token, devices_for_user
 from django_otp.forms import OTPAuthenticationForm
 from django_otp.plugins.otp_totp.models import TOTPDevice
 
-from .forms import UserRegistrationForm, UserAddressForm, CardCreationForm, \
+from .forms import UserAddressForm, CardCreationForm, \
     DepositCardForm, PaymentForm, StatementFilterForm, DepositApprovalForm, SavingsGoalForm, SignUpForm
-from .models import UserAddress, User, Card, Payment, SavingsGoal
+from .models import UserAddress, Card, Payment, SavingsGoal
 import logging
 
 from .utils import convert_currency
@@ -104,47 +102,6 @@ class AccountLoginView(LoginView):
         return super().form_valid(form)
 
 
-class UserRegistrationView(TemplateView):
-    model = User
-    form_class = UserRegistrationForm
-    template_name = 'accounts/user_registration.html'
-
-    def post(self, request, *args, **kwargs):
-        registration_form = UserRegistrationForm(self.request.POST)
-        address_form = UserAddressForm(self.request.POST)
-
-        if registration_form.is_valid() and address_form.is_valid():
-            user = registration_form.save()
-            address = address_form.save(commit=False)
-            address.user = user
-            address.save()
-
-            messages.success(
-                self.request,
-                (
-                    f'Account successfully created. '
-                )
-            )
-            return HttpResponseRedirect(
-                reverse_lazy('accounts:user_profile')
-            )
-
-        return self.render_to_response(
-            self.get_context_data(
-                registration_form=registration_form,
-                address_form=address_form
-            )
-        )
-
-    def get_context_data(self, **kwargs):
-        if 'registration_form' not in kwargs:
-            kwargs['registration_form'] = UserRegistrationForm()
-        if 'address_form' not in kwargs:
-            kwargs['address_form'] = UserAddressForm()
-
-        return super().get_context_data(**kwargs)
-
-
 class LogoutView(RedirectView):
     pattern_name = 'home'
 
@@ -173,7 +130,7 @@ class UserProfileView(TemplateView):
         return context
 
 
-class EditUserAddressView(FormView):
+class EditUserAddressView(LoginRequiredMixin, FormView):
     template_name = 'accounts/edit_user_address.html'
     form_class = UserAddressForm
     success_url = reverse_lazy('accounts:user_profile')
@@ -211,6 +168,7 @@ class EditUserAddressView(FormView):
         return render(request, self.template_name, {'form': form})
 
 
+@login_required()
 def make_payment(request, card_id=None):
     card = get_object_or_404(Card, id=card_id) if card_id else 1
 
@@ -247,24 +205,7 @@ class StaffProfileView(TemplateView):
     template_name = 'accounts/staff_profile.html'
 
 
-@login_required
-def change_password(request):
-    if request.method == 'POST':
-        form = PasswordChangeForm(request.user, request.POST)
-        if form.is_valid():
-            user = form.save()
-            update_session_auth_hash(request, user)  # Обновление хеша сессии, чтобы избежать разлогинивания
-            messages.success(request, 'Password successfully changed.')
-            return redirect('accounts:user_profile')
-        else:
-            messages.error(request, 'Invalid old password or new passwords do not match.')
-    else:
-        form = PasswordChangeForm(request.user)
-
-    return render(request, 'accounts/password_change.html', {'form': form})
-
-
-class CardCreateView(View):
+class CardCreateView(LoginRequiredMixin, View):
     template_name = 'accounts/create_card.html'
     success_url = 'accounts:card_list'
 
@@ -288,7 +229,7 @@ class CardCreateView(View):
         return render(request, self.template_name, {'form': form})
 
 
-class CardListView(View):
+class CardListView(LoginRequiredMixin, View):
     template_name = 'accounts/card_list.html'
 
     def get(self, request):

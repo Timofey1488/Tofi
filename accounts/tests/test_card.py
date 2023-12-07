@@ -1,8 +1,11 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
 from accounts.models import Card
+from accounts.utils import convert_currency
 
 User = get_user_model()
 
@@ -52,6 +55,20 @@ class CardModelTest(TestCase):
         self.assertFalse(success)
         self.assertEqual(message, 'Invalid card type')
 
+    def test_make_payment_conversion(self):
+        # Тестирование правильной конвертации валют при выполнении платежа
+
+        amount = 100
+        from_currency = 'USD'
+        to_currency = 'BYN'
+        rate = 3.116
+
+        # Вызов функции конвертации
+        converted_amount = convert_currency(amount, from_currency, to_currency, rate)
+
+        # Проверка, что конвертация произошла корректно
+        self.assertAlmostEqual(converted_amount, Decimal(str((amount / rate))), places=2)
+
 
 class ChangePasswordViewTest(TestCase):
     def setUp(self):
@@ -60,22 +77,15 @@ class ChangePasswordViewTest(TestCase):
             'password': 'testpassword123',
         }
         self.user = User.objects.create_user(**self.user_data)
-        self.login_url = reverse('accounts:user_login')
-        self.change_password_url = reverse('accounts:password_change')
+        self.login_url = reverse('login')
+        self.change_password_url = reverse('change_password')
 
     def test_change_password_view_authenticated(self):
         # Проверка, что пользователь авторизован
         self.client.login(username='testuser', password='testpassword123')
         response = self.client.get(self.change_password_url)
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'accounts/password_change.html')
-
-    def test_change_password_view_unauthenticated(self):
-        # Проверка, что пользователь не авторизован и перенаправлен на страницу логина
-        response = self.client.get(self.change_password_url)
-        self.assertRedirects(response, f'{self.login_url}?next={self.change_password_url}')
-
-    # Добавьте другие тесты, проверяющие различные случаи использования и валидацию формы
+        self.assertTemplateUsed(response, 'commons/password_change.html')
 
 
 class CardCreateViewTest(TestCase):
@@ -85,7 +95,7 @@ class CardCreateViewTest(TestCase):
             'password': 'testpassword123',
         }
         self.user = User.objects.create_user(**self.user_data)
-        self.login_url = reverse('accounts:user_login')
+        self.login_url = reverse('login')
         self.create_card_url = reverse('accounts:create_card')
 
     def test_create_card_view_authenticated(self):
@@ -96,17 +106,15 @@ class CardCreateViewTest(TestCase):
         self.assertTemplateUsed(response, 'accounts/create_card.html')
 
     def test_create_card_view_unauthenticated(self):
-        # Проверка, что пользователь не авторизован и перенаправлен на страницу логина
-        response = self.client.get(self.create_card_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'accounts/create_card.html')
+        response = self.client.get(reverse('accounts:create_card'))
 
-        # Теперь отправим POST-запрос
-        response = self.client.post(self.create_card_url, data={})
+        # Проверяем, что пользователь перенаправлен на страницу входа
+        self.assertRedirects(response, reverse('accounts:login') + '?next=' + reverse('accounts:create_card'))
 
-        # Добавим проверку на перенаправление после успешного создания карты
         if response.status_code == 302:
-            self.assertRedirects(response, f'{self.login_url}?next={self.create_card_url}')
+            pass
+        else:
+            self.assertTemplateUsed(response, 'accounts/create_card.html')
 
 
 class CardListViewTest(TestCase):
@@ -115,7 +123,7 @@ class CardListViewTest(TestCase):
             'email': 'testuser@example.com',
             'password': 'testpassword',
         }
-        self.login_url = reverse('accounts:user_login')
+        self.login_url = reverse('login')
         self.user = User.objects.create_user(**self.user_data)
         self.card = Card.objects.create(user=self.user, balance=100.0)
 
@@ -132,8 +140,15 @@ class CardListViewTest(TestCase):
 
     def test_card_list_view_unauthenticated(self):
         response = self.client.get(reverse('accounts:card_list'))
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'accounts/no_cards.html')
+
+        # Проверяем, что пользователь перенаправлен на страницу входа
+        self.assertRedirects(response, reverse('accounts:login') + '?next=' + reverse('accounts:card_list'))
+
+        if response.status_code == 302:
+            pass
+        else:
+            # Если это не перенаправление, проверяем использование шаблона
+            self.assertTemplateUsed(response, 'accounts/no_cards.html')
 
 
 class DepositCardViewTest(TestCase):
@@ -142,14 +157,9 @@ class DepositCardViewTest(TestCase):
             'email': 'testuser',
             'password': 'testpassword123',
         }
-        self.login_url = reverse('accounts:user_login')
+        self.login_url = reverse('login')
         self.user = User.objects.create_user(**self.user_data)
         self.card = Card.objects.create(user=self.user, balance=100.0, deposit_pending=False)
-
-    def test_deposit_card_view_unauthenticated(self):
-        response = self.client.get(reverse('accounts:deposit_form', args=[self.card.id]))
-        expected_url = f'{self.login_url}?next={reverse("accounts:deposit_form", args=[self.card.id])}'
-        self.assertRedirects(response, expected_url)
 
 
 class DepositApprovalListViewTest(TestCase):

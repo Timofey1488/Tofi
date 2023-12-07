@@ -144,17 +144,3 @@ class SavingsGoal(models.Model):
         return f"{self.goal_name} - {self.user.first_name}  {self.user.last_name}"
 
 
-class UserAim(models.Model):
-    user = models.OneToOneField(
-        User,
-        related_name='address',
-        on_delete=models.CASCADE,
-    )
-    name = models.CharField(max_length=512)
-    amount_of_deposit_withdraw = models.PositiveIntegerField()
-    period_of_deposit = models.CharField(max_length=1, choices=PERIOD_DEPOSIT)
-    date_start = models.CharField(max_length=256)
-    date_end = models.PositiveIntegerField()
-
-    def __str__(self):
-        return self.user.email

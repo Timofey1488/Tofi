@@ -1,19 +1,19 @@
 from django.urls import path
-from .views import (UserRegistrationView, LogoutView, UserProfileView, CardCreateView,
+from .views import (LogoutView, UserProfileView, CardCreateView,
                     CardListView, deposit_card, StaffProfileView, make_payment, statement, deposit_approval,
                     deposit_approval_list, create_savings_goal,
-                    review_savings_plan, savings_goal_list, edit_savings_goal, delete_savings_goal, EditUserAddressView)
+                    review_savings_plan, savings_goal_list, edit_savings_goal, delete_savings_goal, EditUserAddressView,
+                    AccountLoginView)
 
 app_name = 'accounts'
 
 urlpatterns = [
     path(
-        "logout/", LogoutView.as_view(),
-        name="user_logout"
+        'login/', AccountLoginView.as_view(), name='login'
     ),
     path(
-        "register/", UserRegistrationView.as_view(),
-        name="user_registration"
+        "logout/", LogoutView.as_view(),
+        name="user_logout"
     ),
     path(
         "profile/", UserProfileView.as_view(),
