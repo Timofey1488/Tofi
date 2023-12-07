@@ -5,10 +5,26 @@ from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.forms import SelectDateWidget
-from django.utils import timezone
-
 from .models import User,  UserAddress, Card, SavingsGoal
 from .constants import GENDER_CHOICE, CARD_TYPE, CURRENCY
+
+# Sign Up Form
+
+
+class SignUpForm(UserCreationForm):
+    first_name = forms.CharField(max_length=30, required=False, help_text='Optional')
+    last_name = forms.CharField(max_length=30, required=False, help_text='Optional')
+    email = forms.EmailField(max_length=254, help_text='Enter a valid email address')
+
+    class Meta:
+        model = User
+        fields = [
+            'first_name',
+            'last_name',
+            'email',
+            'password1',
+            'password2',
+            ]
 
 
 class UserAddressForm(forms.ModelForm):

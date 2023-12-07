@@ -1,17 +1,12 @@
 from django.urls import path
-from django.contrib.auth import views as auth_views
-from .views import (UserRegistrationView, LogoutView, UserLoginView, UserProfileView, change_password, CardCreateView,
+from .views import (UserRegistrationView, LogoutView, UserProfileView, CardCreateView,
                     CardListView, deposit_card, StaffProfileView, make_payment, statement, deposit_approval,
                     deposit_approval_list, create_savings_goal,
-                    review_savings_plan, savings_goal_list, edit_savings_goal, delete_savings_goal)
+                    review_savings_plan, savings_goal_list, edit_savings_goal, delete_savings_goal, EditUserAddressView)
 
 app_name = 'accounts'
 
 urlpatterns = [
-    path(
-        "login/", UserLoginView.as_view(),
-        name="user_login"
-    ),
     path(
         "logout/", LogoutView.as_view(),
         name="user_logout"
@@ -25,19 +20,15 @@ urlpatterns = [
         name="user_profile"
     ),
     path(
+        "profile-edit/", EditUserAddressView.as_view(),
+        name="edit_profile"
+    ),
+    path(
         "staff_profile/", StaffProfileView.as_view(),
         name="staff_profile"
     ),
     path(
-        'password_change/', change_password,
-        name='password_change'
-    ),
-    path(
         'make_payment/', make_payment, name='make_payment'
-    ),
-    path(
-        'password_change_done/', auth_views.PasswordChangeDoneView.as_view(),
-        name='password_change_done'
     ),
     path(
         'create_card/', CardCreateView.as_view(),
