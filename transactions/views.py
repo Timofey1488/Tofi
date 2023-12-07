@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import TemplateView
 from .models import Transaction
@@ -11,6 +12,7 @@ class TransactionMenu(TemplateView):
     template_name = 'transactions/transaction_menu.html'
 
 
+@login_required
 def fund_transfer(request, card_id=None):
     card = get_object_or_404(Card, id=card_id) if card_id else 1
 
@@ -74,6 +76,7 @@ def fund_transfer(request, card_id=None):
     return render(request, 'transactions/fund_transfer.html', {'form': form, 'card': card})
 
 
+@login_required
 def fund_transfer_card_by_card(request, card_id=None):
     card = get_object_or_404(Card, id=card_id) if card_id else 1
 

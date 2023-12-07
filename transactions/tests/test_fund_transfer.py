@@ -1,68 +1,86 @@
 from django.test import TestCase
 from django.urls import reverse
-from accounts.models import User
-from decimal import Decimal
-from accounts.models import Card
-from transactions.models import Transaction
+from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
+from accounts.models import Card, Payment
+
+User = get_user_model()
 
 
-# class FundTransferViewTests(TestCase):
-#     def setUp(self):
-#         # Create a test user
-#         self.user_data = {
-#             'email': 'testuser',
-#             'password': 'testpassword123',
-#         }
-#         self.user = User.objects.create_user(**self.user_data)
-#
-#         # Create test cards for the user
-#         self.card1 = Card.objects.create(user=self.user, balance=100, currency='U')
-#         self.card2 = Card.objects.create(user=self.user, balance=50, currency='B')
-#
-#     def test_fund_transfer_view(self):
-#         self.client.login(email='testuser@example.com', password='testpassword')
-#
-#         # Make a POST request to fund_transfer view
-#         response = self.client.post(
-#             reverse('transactions:fund_transfer', kwargs={'card_id': self.card1.id}),
-#             {'receiver_account_number': 'receiver_account_number', 'amount': 20, 'card': self.card1.id},
-#         )
-#
-#         # Check if the transfer was successful and the user is redirected
-#         self.assertEqual(response.status_code, 302)
-#         self.assertRedirects(response, reverse('accounts:card_list'))
-#
-#         # Check if the balances were updated
-#         sender_card = Card.objects.get(id=self.card1.id)
-#         receiver_card = Card.objects.get(account_no='receiver_account_number')
-#
-#         self.assertEqual(sender_card.balance, 80)
-#         self.assertEqual(receiver_card.balance, Decimal('20') * Decimal('3.116'))
-#
-#         # Check if the transaction was recorded
-#         transactions = Transaction.objects.all()
-#         self.assertEqual(transactions.count(), 2)  # Two transactions are recorded (sender and receiver)
-#
-#     def test_fund_transfer_card_by_card_view(self):
-#         self.client.login(email='testuser@example.com', password='testpassword')
-#
-#         # Make a POST request to fund_transfer_card_by_card view
-#         response = self.client.post(
-#             reverse('transactions:fund_transfer_card_by_card', kwargs={'card_id': self.card1.id}),
-#             {'card_one': self.card1.id, 'card_two': self.card2.id, 'amount': 10},
-#         )
-#
-#         # Check if the transfer was successful and the user is redirected
-#         self.assertEqual(response.status_code, 302)
-#         self.assertRedirects(response, reverse('accounts:card_list'))
-#
-#         # Check if the balances were updated
-#         sender_card = Card.objects.get(id=self.card1.id)
-#         receiver_card = Card.objects.get(id=self.card2.id)
-#
-#         self.assertEqual(sender_card.balance, 90)
-#         self.assertEqual(receiver_card.balance, 10)
-#
-#         # Check if the transaction was recorded
-#         transactions = Transaction.objects.all()
-#         self.assertEqual(transactions.count(), 2)
+class FundTransferViewTest(TestCase):
+    def create_user(self, email='test@example.com', password='testpassword'):
+        return User.objects.create_user(email=email, password=password)
+
+    def setUp(self):
+        # Создаем тестового пользователя и карту
+        self.user = self.create_user()
+        self.card = Card.objects.create(user=self.user, balance=100, currency='U', card_type='D', account_no='123456789')
+
+    def test_fund_transfer_view(self):
+        # Входим в систему от имени пользователя
+        self.client.login(username='test@example.com', password='testpassword')
+
+        # Формируем URL и данные для передачи в представление
+        url = reverse('transactions:fund_transfer')
+        data = {
+            'receiver_account_number': '123456789',
+            'amount': 50,
+            'card': self.card.id
+        }
+
+        # Отправляем POST-запрос на представление
+        response = self.client.post(url, data)
+        # Проверяем, что запрос был успешным (код ответа 302 - перенаправление)
+        self.assertEqual(response.status_code, 302)
+
+        # Проверяем, что балансы обновлены правильно
+        sender_card = Card.objects.get(id=self.card.id)
+        receiver_card = Card.objects.get(account_no='123456789')
+        self.assertEqual(sender_card.balance, 50)
+        self.assertEqual(receiver_card.balance, 50)
+
+
+class FundTransferByCardViewTest(TestCase):
+    def create_user(self, email='test@example.com', password='testpassword'):
+        return User.objects.create_user(email=email, password=password)
+
+    def setUp(self):
+        # Создаем тестового пользователя и две карты
+        self.user = self.create_user()
+        self.card_one = Card.objects.create(user=self.user, balance=100, currency='U', card_type='D')
+        self.card_two = Card.objects.create(user=self.user, balance=100, currency='B', card_type='C')
+
+    def test_fund_transfer_by_card_view(self):
+        # Входим в систему от имени пользователя
+        self.client.login(username='test@example.com', password='testpassword')
+
+        # Формируем URL и данные для передачи в представление
+        url = reverse('transactions:fund_transfer_card_by_card')
+        data = {
+            'card_one': self.card_one.id,
+            'card_two': self.card_two.id,
+            'amount': 50
+        }
+
+        # Отправляем POST-запрос на представление
+        response = self.client.post(url, data)
+        # Проверяем, что запрос был успешным (код ответа 302 - перенаправление)
+        self.assertEqual(response.status_code, 302)
+
+        # Получаем сообщения из контекста запроса
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        # Проверяем, что хотя бы одно сообщение содержит "Error"
+        self.assertFalse(any('Error' in message for message in messages))
+
+        # Проверяем, что балансы обновлены правильно
+        sender_card = Card.objects.get(id=self.card_one.id)
+        receiver_card = Card.objects.get(id=self.card_two.id)
+        print(f"Sender Card Balance Before Transaction: {sender_card.balance}")
+        print(f"Receiver Card Balance Before Transaction: {receiver_card.balance}")
+        self.assertEqual(sender_card.balance, 50)
+        self.assertEqual(receiver_card.balance, 150)
+
+        sender_card = Card.objects.get(id=self.card_one.id)
+        receiver_card = Card.objects.get(id=self.card_two.id)
+        print(f"Sender Card Balance After Transaction: {sender_card.balance}")
+        print(f"Receiver Card Balance After Transaction: {receiver_card.balance}")
