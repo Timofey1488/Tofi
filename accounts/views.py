@@ -5,7 +5,9 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
+import requests
 from django.contrib.sites.shortcuts import get_current_site
+from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
@@ -168,6 +170,29 @@ class EditUserAddressView(LoginRequiredMixin, FormView):
         return render(request, self.template_name, {'form': form})
 
 
+def get_usd_exchange_rate():
+    url = "https://belarusbank.by/api/kursExchange"
+
+    # Отправка GET-запроса к API
+    response = requests.get(url)
+
+    # Проверка успешности запроса
+    if response.status_code == 200:
+        data = response.json()
+
+        # Предположим, что "USD_in" находится внутри первого элемента списка
+        if isinstance(data, list) and len(data) > 0:
+            usd_in_rate = data[0].get("USD_in")
+            return usd_in_rate
+        else:
+            print("Структура данных не соответствует ожидаемой.")
+            return None
+    else:
+        # Вывод сообщения об ошибке в случае неудачного запроса
+        print(f"Ошибка при получении данных. Статус код: {response.status_code}")
+        return None
+
+
 @login_required()
 def make_payment(request, card_id=None):
     card = get_object_or_404(Card, id=card_id) if card_id else 1
@@ -181,7 +206,14 @@ def make_payment(request, card_id=None):
             # Извлекаем card_type из выбранной карты
             card_type = selected_card.card_type
             if selected_card.currency == 'U':
-                converted_amount = convert_currency(amount, 'USD', 'BYN', 3.116)
+                usd_in_rate = get_usd_exchange_rate()
+
+                # Пример значения по умолчанию, если запрос к API неудачен
+                if usd_in_rate is None:
+                    usd_in_rate = 3.116
+                print(usd_in_rate)
+                converted_amount = convert_currency(amount, 'USD', 'BYN', usd_in_rate)
+
             else:
                 converted_amount = amount
 
@@ -224,7 +256,7 @@ class CardCreateView(LoginRequiredMixin, View):
                 return redirect(self.success_url)
         except Exception as e:
             logger.error(f"Error during card creation: {str(e)}")
-            # Raise the exception again for debugging purposes
+
             raise
         return render(request, self.template_name, {'form': form})
 
@@ -379,11 +411,28 @@ def review_savings_plan(request, goal_id):
     }
 
     if request.method == 'POST':
+        if 'cancel' in request.POST:
+            # Обработка нажатия кнопки "Cancel"
+            return redirect('accounts:savings_goal_list')
+
         # Обработка нажатия кнопки "Approve"
         savings_goal.approved = True
         savings_goal.is_active = False  # Отключаем цель после одобрения
         savings_goal.monthly_payment = monthly_savings_amount
         savings_goal.save()
+
+        if Card.objects.filter(user=request.user, card_name=f"Savings Goal: {savings_goal.goal_name}").exists():
+            raise ValidationError("Card already exists for this SavingsGoal")
+
+        # Create associated card
+        Card.objects.create(
+            card_name=f"{savings_goal.goal_name} Card",
+            user=request.user,
+            card_type="D",
+            currency="B"
+        )
+
+        messages.success(request, "Savings goal and card created. Review and confirm to proceed.")
         return redirect('accounts:savings_goal_list')
 
     return render(request, 'accounts/review_savings_plan.html', context)

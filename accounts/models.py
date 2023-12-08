@@ -1,6 +1,7 @@
 
 import random
 
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 
@@ -45,7 +46,7 @@ class UserAddress(models.Model):
 
 
 class Card(models.Model):
-    card_name = models.CharField(max_length=20, default='Test')
+    card_name = models.CharField(max_length=100, default='Test')
     account_no = models.CharField(max_length=16, unique=True)
     user = models.ForeignKey(
         User,

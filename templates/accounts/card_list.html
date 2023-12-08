@@ -17,7 +17,7 @@
             <a href="{% url 'accounts:create_card' %}">Create new card</a>
         </button>
       </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:w-1/2 md:w-full lg:w-full">
       {% for card in cards %}
        <div class="bg-white rounded-lg overflow-hidden shadow-md card-container">
           <div class="p-4">

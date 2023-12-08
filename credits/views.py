@@ -2,8 +2,11 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.admin.views.decorators import staff_member_required
+
+from accounts.models import Card
 from credits.forms import CreditApprovalForm, CreditApplicationForm
 from credits.models import CreditApplication, Credit
 
@@ -26,7 +29,7 @@ def apply_credit(request):
             credit_application.save()
 
             messages.success(request, "Credit application submitted. Awaiting approval.")
-            return redirect('credits:credit_list')
+            return redirect('accounts:user_profile')
     else:
         form = CreditApplicationForm()
 
@@ -53,6 +56,19 @@ def approve_credit(request, credit_app_id):
                     remaining_amount=credit_application.amount,
                     status='APPROVED'
                 )
+                if Card.objects.filter(user=credit_application.user, card_name=f"Credit: {credit_application.purpose}").exists():
+                    raise ValidationError("Card already exists for this Credit")
+
+                # Create associated card
+                Card.objects.create(
+                    card_name=f"{credit_application.purpose} Credit",
+                    user=credit_application.user,
+                    card_type="C",
+                    balance=credit_application.amount,
+                    currency="B"
+                )
+
+                messages.success(request, "Credit and card created. Review and confirm to proceed.")
 
                 credit_application.status = 'APPROVED'
                 credit_application.save()

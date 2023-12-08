@@ -4,6 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import TemplateView
+
+from accounts.views import get_usd_exchange_rate
 from .models import Transaction
 from .forms import FundTransferForm, FundTransferByCardForm
 from accounts.models import Card, Payment
@@ -39,13 +41,17 @@ def fund_transfer(request, card_id=None):
             if sender_card == receiver_card:
                 messages.error(request, "Cannot transfer funds from and to the same card.")
                 return redirect('transactions:fund_transfer')
+            usd_in_rate = get_usd_exchange_rate()
 
+            if usd_in_rate is None:
+                usd_in_rate = 3.116  # default, if api not working
+            print(usd_in_rate)
             if sender_card.currency == 'U' and sender_card.currency != receiver_card.currency:
-                # 1 USD = 3.116 BYN
-                converted_amount = Decimal(str(amount)) * Decimal(str(3.116))
+                # from belarusbank api
+                converted_amount = Decimal(str(amount)) * Decimal(str(usd_in_rate))
             elif sender_card.currency == 'B' and sender_card.currency != receiver_card.currency:
-                # 1 USD = 3.116 BYN
-                converted_amount = Decimal(str(amount)) / Decimal(str(3.116))
+                # from belarusbank api
+                converted_amount = Decimal(str(amount)) / Decimal(str(usd_in_rate))
             else:
                 converted_amount = amount
 
@@ -95,7 +101,11 @@ def fund_transfer_card_by_card(request, card_id=None):
 
             sender_card = Card.objects.get(id=card_one.id)
             receiver_card = Card.objects.get(id=card_two.id)
+            usd_in_rate = get_usd_exchange_rate()
 
+            if usd_in_rate is None:
+                usd_in_rate = 3.116  # default, if api not working
+            print(usd_in_rate)
             try:
                 with transaction.atomic():
                     # Check balance
@@ -108,8 +118,7 @@ def fund_transfer_card_by_card(request, card_id=None):
                         messages.error(request, "Cannot transfer funds from and to the same card.")
                         return redirect('transactions:fund_transfer_card_by_card')
 
-                    # Assuming conversion rate is 1 USD = 3.116 BYN
-                    conversion_rate = Decimal('3.116')
+                    conversion_rate = Decimal(usd_in_rate)
 
                     if sender_card.currency != receiver_card.currency:
                         if sender_card.currency == 'U':
