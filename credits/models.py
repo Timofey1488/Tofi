@@ -12,7 +12,7 @@ class CreditApplication(models.Model):
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     purpose = models.CharField(max_length=255)
-    status = models.CharField(max_length=20, choices=CREDIT_STATUS)
+    status = models.CharField(max_length=20)
     created_at = models.DateTimeField(auto_now_add=True)
 
 

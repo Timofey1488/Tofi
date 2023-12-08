@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
 from django.db import models, transaction
 
-from .constants import GENDER_CHOICE, CURRENCY, CARD_TYPE, PERIOD_DEPOSIT
+from .constants import CURRENCY, CARD_TYPE
 from .managers import UserManager
 
 

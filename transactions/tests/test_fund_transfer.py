@@ -1,43 +1,14 @@
+from decimal import Decimal
+
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from accounts.models import Card, Payment
+from transactions.forms import FundTransferByCardForm, FundTransferForm
+from django.test import Client
 
 User = get_user_model()
-
-
-class FundTransferViewTest(TestCase):
-    def create_user(self, email='test@example.com', password='testpassword'):
-        return User.objects.create_user(email=email, password=password)
-
-    def setUp(self):
-        # Создаем тестового пользователя и карту
-        self.user = self.create_user()
-        self.card = Card.objects.create(user=self.user, balance=100, currency='U', card_type='D', account_no='123456789')
-
-    def test_fund_transfer_view(self):
-        # Входим в систему от имени пользователя
-        self.client.login(username='test@example.com', password='testpassword')
-
-        # Формируем URL и данные для передачи в представление
-        url = reverse('transactions:fund_transfer')
-        data = {
-            'receiver_account_number': '123456789',
-            'amount': 50,
-            'card': self.card.id
-        }
-
-        # Отправляем POST-запрос на представление
-        response = self.client.post(url, data)
-        # Проверяем, что запрос был успешным (код ответа 302 - перенаправление)
-        self.assertEqual(response.status_code, 302)
-
-        # Проверяем, что балансы обновлены правильно
-        sender_card = Card.objects.get(id=self.card.id)
-        receiver_card = Card.objects.get(account_no='123456789')
-        self.assertEqual(sender_card.balance, 50)
-        self.assertEqual(receiver_card.balance, 50)
 
 
 class FundTransferByCardViewTest(TestCase):
@@ -48,11 +19,15 @@ class FundTransferByCardViewTest(TestCase):
         # Создаем тестового пользователя и две карты
         self.user = self.create_user()
         self.card_one = Card.objects.create(user=self.user, balance=100, currency='U', card_type='D')
-        self.card_two = Card.objects.create(user=self.user, balance=100, currency='B', card_type='C')
+        self.card_two = Card.objects.create(user=self.user, balance=0, currency='B', card_type='C')
+
+    def test_fund_transfer_view_get(self):
+        response = self.client.get(reverse('transactions:fund_transfer_card_by_card'), follow=True)
+        self.assertEqual(response.status_code, 200)
 
     def test_fund_transfer_by_card_view(self):
         # Входим в систему от имени пользователя
-        self.client.login(username='test@example.com', password='testpassword')
+        self.client.login(email='test@example.com', password='testpassword')
 
         # Формируем URL и данные для передачи в представление
         url = reverse('transactions:fund_transfer_card_by_card')
@@ -75,12 +50,54 @@ class FundTransferByCardViewTest(TestCase):
         # Проверяем, что балансы обновлены правильно
         sender_card = Card.objects.get(id=self.card_one.id)
         receiver_card = Card.objects.get(id=self.card_two.id)
-        print(f"Sender Card Balance Before Transaction: {sender_card.balance}")
-        print(f"Receiver Card Balance Before Transaction: {receiver_card.balance}")
-        self.assertEqual(sender_card.balance, 50)
-        self.assertEqual(receiver_card.balance, 150)
 
-        sender_card = Card.objects.get(id=self.card_one.id)
-        receiver_card = Card.objects.get(id=self.card_two.id)
-        print(f"Sender Card Balance After Transaction: {sender_card.balance}")
-        print(f"Receiver Card Balance After Transaction: {receiver_card.balance}")
+        self.assertEqual(sender_card.balance, 50)
+        self.assertAlmostEqual(Decimal(receiver_card.balance), Decimal(155.80), places=2)
+
+
+class FundTransferViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email='test@example.com', password='testpass')
+
+        self.sender_card = Card.objects.create(user=self.user, card_type='C', currency='U', balance=100)
+        self.receiver_card = Card.objects.create(user=self.user, card_type='D', currency='B', balance=50)
+
+        self.client = Client()
+        self.client.login(email='test@example.com', password='testpass')
+
+    def test_fund_transfer_view_get(self):
+        # Test GET request to the view
+        response = self.client.get(reverse('transactions:fund_transfer'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'transactions/fund_transfer.html')
+        self.assertIsInstance(response.context['form'], FundTransferForm)
+
+    def test_fund_transfer_view_post_successful(self):
+        data = {
+            'receiver_account_number': self.receiver_card.account_no,
+            'amount': 30,
+            'card': self.sender_card.id,
+        }
+        response = self.client.post(reverse('transactions:fund_transfer'), data)
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('accounts:card_list'))
+
+        self.sender_card.refresh_from_db()
+        self.receiver_card.refresh_from_db()
+        self.assertAlmostEqual(float(self.sender_card.balance), float(70), places=2)
+        self.assertAlmostEqual(float(self.receiver_card.balance), float(50 + Decimal('30') * Decimal('3.116')), places=2)
+
+        self.assertEqual(Payment.objects.filter(card=self.sender_card, amount=70).count(), 1)
+        self.assertEqual(Payment.objects.filter(card=self.receiver_card, amount=50 + Decimal('30') * Decimal('3.116')).count(), 1)
+
+    def test_fund_transfer_view_post_insufficient_funds(self):
+        data = {
+            'receiver_account_number': self.receiver_card.account_no,
+            'amount': 150,
+            'card': self.sender_card.id,
+        }
+        response = self.client.post(reverse('transactions:fund_transfer'), data)
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('accounts:card_list'))
+
+        self.assertEqual(Payment.objects.count(), 2)
