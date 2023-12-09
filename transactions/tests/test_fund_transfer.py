@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from accounts.models import Card, Payment
+from accounts.views import get_usd_exchange_rate
 from transactions.forms import FundTransferByCardForm, FundTransferForm
 from django.test import Client
 
@@ -50,9 +51,9 @@ class FundTransferByCardViewTest(TestCase):
         # Проверяем, что балансы обновлены правильно
         sender_card = Card.objects.get(id=self.card_one.id)
         receiver_card = Card.objects.get(id=self.card_two.id)
-
+        usd_in_rate = get_usd_exchange_rate()
         self.assertEqual(sender_card.balance, 50)
-        self.assertAlmostEqual(Decimal(receiver_card.balance), Decimal(155.80), places=2)
+        self.assertAlmostEqual(Decimal(receiver_card.balance), 50 * Decimal(usd_in_rate), places=2)
 
 
 class FundTransferViewTest(TestCase):
@@ -85,10 +86,11 @@ class FundTransferViewTest(TestCase):
         self.sender_card.refresh_from_db()
         self.receiver_card.refresh_from_db()
         self.assertAlmostEqual(float(self.sender_card.balance), float(70), places=2)
-        self.assertAlmostEqual(float(self.receiver_card.balance), float(50 + Decimal('30') * Decimal('3.116')), places=2)
+        usd_in_rate = get_usd_exchange_rate()
+        self.assertAlmostEqual(float(self.receiver_card.balance), float(50 + Decimal('30') * Decimal(usd_in_rate)), places=2)
 
         self.assertEqual(Payment.objects.filter(card=self.sender_card, amount=70).count(), 1)
-        self.assertEqual(Payment.objects.filter(card=self.receiver_card, amount=50 + Decimal('30') * Decimal('3.116')).count(), 1)
+        self.assertEqual(Payment.objects.filter(card=self.receiver_card, amount=50 + Decimal('30') * Decimal(usd_in_rate)).count(), 1)
 
     def test_fund_transfer_view_post_insufficient_funds(self):
         data = {
