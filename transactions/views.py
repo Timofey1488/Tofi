@@ -41,7 +41,7 @@ def fund_transfer(request, card_id=None):
             if sender_card == receiver_card:
                 messages.error(request, "Cannot transfer funds from and to the same card.")
                 return redirect('transactions:fund_transfer')
-            usd_in_rate = get_usd_exchange_rate()
+            usd_in_rate = 3.19
 
             if usd_in_rate is None:
                 usd_in_rate = 3.116  # default, if api not working
@@ -101,7 +101,7 @@ def fund_transfer_card_by_card(request, card_id=None):
 
             sender_card = Card.objects.get(id=card_one.id)
             receiver_card = Card.objects.get(id=card_two.id)
-            usd_in_rate = get_usd_exchange_rate()
+            usd_in_rate = 3.19
 
             if usd_in_rate is None:
                 usd_in_rate = 3.116  # default, if api not working
